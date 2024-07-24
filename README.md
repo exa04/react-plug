@@ -1,3 +1,11 @@
+<div align="center">
+<h1>
+<img src="https://github.com/user-attachments/assets/000ce122-5dc2-40b6-9a63-bf8942bc3b79">
+<div>React-Plug</div>
+</h1>
+A new way to build plug-ins using Rust and React.
+</div>
+
 > [!CAUTION]
 > **Turn away before it's too late!**
 > 
@@ -5,9 +13,6 @@
 > when it's more mature. Right now, I'm just trying things out and the whole
 > project might end up going in a totally different direction. That, or I'll
 > just lose interest.
-
-# React-Plug
-A new way to build plug-ins using Rust and React.
 
 React-Plug is a crate that allows you to build Rust audio plug-ins with React
 GUIs using [nih-plug](https://github.com/robbert-vdh/nih-plug) and
