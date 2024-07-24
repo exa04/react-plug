@@ -1,0 +1,11 @@
+[package]
+name = "react_plug"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug" }
+crossbeam-channel = "0.5.13"
+
+[workspace]
+members = ["react_plug_derive"]
