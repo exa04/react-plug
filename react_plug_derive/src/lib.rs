@@ -1,7 +1,5 @@
 extern crate proc_macro;
 
-use std::str::FromStr;
-
 use heck::ToUpperCamelCase;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -9,8 +7,6 @@ use syn::{braced, Error, Expr, Token, token, Type};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-
-const SENDER_NAME: &str = "sender";
 
 struct RPParams {
     pub ident: Ident,
@@ -101,15 +97,13 @@ impl Parse for RPParamType {
     }
 }
 
-
+// TODO: Support attributes and macros
+// TODO: Skipping fields
 #[proc_macro]
 pub fn rp_params(
     input: proc_macro::TokenStream
 ) -> proc_macro::TokenStream {
-    let params = match syn::parse::<RPParams>(input) {
-        Ok(params) => { params },
-        Err(E) => { panic!("{}", E) }
-    };
+    let params = syn::parse::<RPParams>(input).unwrap();
 
     let ident = &params.ident;
 
@@ -145,7 +139,7 @@ pub fn rp_params(
 
         quote! {
             #[id = #id]
-            #ident: #ty
+            pub #ident: #ty
         }
     });
 
@@ -153,13 +147,6 @@ pub fn rp_params(
     let param_struct_initializers = params.params.iter().map(|param| {
         let ident = &param.ident;
         let ty = &param.ty;
-
-        fn find_arg(fields: &Punctuated<RPParamField, Token![,]>, name: String) -> Option<Expr> {
-            fields
-                .iter()
-                .find(|field| field.ident.to_token_stream().to_string() == name)
-                .map(|field| field.expr.clone())
-        }
 
         let required = match ty {
             RPParamType::FloatParam => { vec!["name", "value", "range"] },
@@ -220,9 +207,12 @@ pub fn rp_params(
             #(#param_struct_fields),*
         }
 
+        #[derive(serde::Serialize, serde::Deserialize)]
         pub enum #param_enum_ident {
             #(#param_enum_fields),*
         }
+
+        impl react_plug::ParamType for #param_enum_ident { }
 
         impl #ident {
             pub fn new(sender: &crossbeam_channel::Sender<PluginMessage>) -> Self {
@@ -230,8 +220,18 @@ pub fn rp_params(
                     #(#param_struct_initializers),*
                 }
             }
-            pub fn send_all(&self, sender: crossbeam_channel::Sender<PluginMessage>) {
-                #(#send_value_fns);*
+        }
+
+        impl react_plug::Parameters for #ident {
+            type ParamType = #param_enum_ident;
+            type PluginToGuiMessage = PluginMessage;
+
+            fn send_all(&self, sender: crossbeam_channel::Sender<Self::PluginToGuiMessage>) {
+                #(#send_value_fns)*
+            }
+
+            fn set_param(&self, setter: &ParamSetter, param: Self::ParamType) {
+                todo!()
             }
         }
     }}.into()

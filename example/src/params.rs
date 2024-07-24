@@ -1,22 +1,11 @@
-extern crate react_plug_derive;
-
-use crossbeam_channel::Sender;
 use nih_plug::prelude::*;
-use react_plug::{Parameters, PluginToGuiMessage};
-use react_plug_derive::rp_params;
+use react_plug::PluginToGuiMessage;
+use react_plug::prelude::*;
 use serde::{Deserialize, Serialize};
+use crate::PluginMessage;
 
-#[derive(Serialize, Deserialize)]
-pub enum PluginMessage {
-    ParameterChange(TestParamsType),
-}
-
-impl PluginToGuiMessage<TestParamsType> for PluginMessage {
-
-}
-
-rp_params!{
-    TestParams {
+rp_params! {
+    ExampleParams {
         gain: FloatParam {
             name: "Gain",
             value: util::db_to_gain(0.0),
