@@ -22,9 +22,10 @@ includes your React GUI, automatically generates
 communication and more. It's meant to be a batteries-included easy-to-use
 framework. Here are some of its standout features:
 
-  - Macros for easy parameter generation
-  - ~~Automatically generated TypeScript bindings~~
-  - ~~Hot-reloading (dev mode)~~
+  - [x] Macros for easy parameter generation
+  - [x] Automatically generated TypeScript bindings
+  - [ ] Support for custom messages
+  - [ ] Hot-reloading (dev mode)
 
 ## Parameters
 
