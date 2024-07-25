@@ -7,7 +7,7 @@ use nih_plug::prelude::*;
 use std::sync::Arc;
 use crossbeam_channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
-use react_plug::{PluginToGuiMessage, RPPlugin};
+use react_plug::{RPPlugin};
 use include_dir::{Dir, include_dir};
 
 pub struct ExamplePlugin {
@@ -26,13 +26,36 @@ impl Default for ExamplePlugin {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "PluginMessage.ts")]
 pub enum PluginMessage {
     ParameterChange(ExampleParamsType),
 }
 
-impl PluginToGuiMessage<ExampleParamsType> for PluginMessage {
+impl react_plug::PluginMessage<ExampleParamsType> for PluginMessage {
+    fn parameter_change(param_type: ExampleParamsType) -> Self {
+        Self::ParameterChange(param_type)
+    }
+}
 
+#[derive(Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "GuiMessage.ts")]
+pub enum GuiMessage {
+    Init,
+    ParameterChange(ExampleParamsType),
+}
+
+impl react_plug::GuiMessage<ExampleParamsType> for GuiMessage {
+    fn is_init(&self) -> bool {
+        if let GuiMessage::Init = self {
+            true
+        } else { false }
+    }
+    fn is_param_update_and<F: FnOnce(&ExampleParamsType)>(&self, action: F) {
+        if let GuiMessage::ParameterChange(param_type) = self {
+            action(param_type);
+        }
+    }
 }
 
 static EDITOR_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/gui/dist");
@@ -69,7 +92,7 @@ impl Plugin for ExamplePlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        Some(Box::new(react_plug::editor::create_editor(
+        Some(Box::new(react_plug::editor::create_editor::<PluginMessage, GuiMessage, ExampleParams>(
             self.params.clone(),
             self.editor_channel(),
             Some("example".into()),

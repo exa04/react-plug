@@ -6,28 +6,41 @@ pub mod prelude {
 }
 
 // TODO: Add a macro for deriving this
-pub trait PluginToGuiMessage<P: ParamType>:
+pub trait PluginMessage<P: ParamType>:
 serde::Serialize +
 serde::de::DeserializeOwned +
-Send
+Send +
+ts_rs::TS
 {
+    fn parameter_change(param_type: P) -> Self;
+}
+
+// TODO: Add a macro for deriving this
+pub trait GuiMessage<P: ParamType>:
+serde::Serialize +
+serde::de::DeserializeOwned +
+Send +
+ts_rs::TS
+{
+    fn is_init(&self) -> bool;
+    fn is_param_update_and<F: FnOnce(&P)>(&self, action: F);
 }
 
 pub trait Parameters: nih_plug::params::Params {
     type ParamType: ParamType;
-    type PluginToGuiMessage: PluginToGuiMessage<Self::ParamType>;
 
-    fn send_all(&self, sender: crossbeam_channel::Sender<Self::PluginToGuiMessage>);
-    fn set_param(&self, setter: &nih_plug::context::gui::ParamSetter, param: Self::ParamType);
+    fn send_all<PM: PluginMessage<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>);
+    fn set_param(&self, setter: &nih_plug::context::gui::ParamSetter, param: &Self::ParamType);
 }
 
 pub trait ParamType:
     serde::Serialize +
-    serde::Deserialize<'static>
+    serde::Deserialize<'static> +
+    ts_rs::TS
 { }
 
 pub trait RPPlugin: nih_plug::plugin::Plugin {
-    type PluginToGuiMessage: PluginToGuiMessage<Self::ParamType>;
+    type PluginToGuiMessage: PluginMessage<Self::ParamType>;
     type ParamType: ParamType;
 
     fn editor_channel(&self) -> (crossbeam_channel::Sender<Self::PluginToGuiMessage>, crossbeam_channel::Receiver<Self::PluginToGuiMessage>);

@@ -851,6 +851,7 @@ dependencies = [
  "nih_plug",
  "react_plug",
  "serde",
+ "ts-rs",
 ]
 
 [[package]]
@@ -2417,6 +2418,7 @@ dependencies = [
  "react_plug_derive",
  "serde",
  "serde_json",
+ "ts-rs",
 ]
 
 [[package]]
@@ -2980,6 +2982,28 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "winnow 0.6.15",
+]
+
+[[package]]
+name = "ts-rs"
+version = "9.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b44017f9f875786e543595076374b9ef7d13465a518dd93d6ccdbf5b432dde8c"
+dependencies = [
+ "thiserror",
+ "ts-rs-macros",
+]
+
+[[package]]
+name = "ts-rs-macros"
+version = "9.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c88cc88fd23b5a04528f3a8436024f20010a16ec18eb23c164b1242f65860130"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.72",
+ "termcolor",
 ]
 
 [[package]]

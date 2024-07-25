@@ -12,6 +12,7 @@ react_plug = {path = "../"}
 crossbeam-channel = "0.5.13"
 include_dir = "0.7.4"
 serde = { version = "1.0.204", features = ["derive"] }
+ts-rs = "9.0.1"
 
 [profile.release]
 lto = "thin"

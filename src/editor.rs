@@ -1,18 +1,25 @@
 use std::sync::Arc;
 
 use include_dir::Dir;
+use nih_plug::nih_log;
 use nih_plug_webview::{HTMLSource, WebViewEditor};
 use nih_plug_webview::http::Response;
 
-use crate::{Parameters, ParamType, PluginToGuiMessage};
+use crate::{Parameters, ParamType, PluginMessage, GuiMessage};
 
-pub fn create_editor<M: PluginToGuiMessage<P> + 'static, P: ParamType>(
-    _params: Arc<impl Parameters>,
-    editor_channel: (crossbeam_channel::Sender<M>, crossbeam_channel::Receiver<M>),
+pub fn create_editor<PM, GM, P>
+(
+    params: Arc<P>,
+    editor_channel: (crossbeam_channel::Sender<PM>, crossbeam_channel::Receiver<PM>),
     _protocol: Option<&'static str>,
     dir: &'static Dir
-) -> WebViewEditor {
-    let _plugin_sender = editor_channel.0.clone();
+) -> WebViewEditor
+where
+    PM: PluginMessage<P::ParamType> + 'static,
+    GM: GuiMessage<P::ParamType> + 'static,
+    P: Parameters
+{
+    let plugin_sender = editor_channel.0.clone();
     let plugin_receiver = editor_channel.1.clone();
     let protocol: &'static str = None.unwrap_or("plugin".into());
 
@@ -56,6 +63,16 @@ pub fn create_editor<M: PluginToGuiMessage<P> + 'static, P: ParamType>(
                     .map_err(Into::into)
             }
         }).with_event_loop(move |ctx, setter, _window| {
+            while let Ok(value) = ctx.next_event() {
+                if let Ok(message) = serde_json::from_value::<GM>(value) {
+                    if message.is_init() {
+                        params.send_all(plugin_sender.clone());
+                    }
+                    message.is_param_update_and(|param| {
+                        params.set_param(&setter, param);
+                    });
+                } else { nih_log!("Received invalid message from GUI!") }
+            }
             while !plugin_receiver.is_empty() {
                 let message = serde_json::to_value(plugin_receiver.recv().unwrap())
                     .expect("Failed to serialize message to JSON");
@@ -63,17 +80,4 @@ pub fn create_editor<M: PluginToGuiMessage<P> + 'static, P: ParamType>(
                     .expect("Failed to send message to GUI");
             }
         })
-        // while let Ok(value) = ctx.next_event() {
-        //     if let Ok(action) = serde_json::from_value::<M>(value) {
-        //         if action.is_init() {
-        //             nih_log!("GUI Opened, sending initial data..");
-        //             params.send_all(plugin_sender.clone());
-        //         }
-        //         action.is_update_param_and(|param| {
-        //             params.set_param(&setter, param);
-        //         });
-        //     } else {
-        //         panic!("Invalid action received from web UI.")
-        //     }
-        // }
 }

@@ -185,7 +185,7 @@ pub fn rp_params(
                 .with_callback({
                     let sender = sender.clone();
                     std::sync::Arc::new(move |value| {
-                        sender.send(PluginMessage::ParameterChange(#param_enum_ident::#variant(value))).unwrap();
+                        sender.send(PM::parameter_change(#param_enum_ident::#variant(value))).unwrap();
                     })
                 })
         }
@@ -197,7 +197,23 @@ pub fn rp_params(
         let variant = variant(&param.ident);
 
         quote!{
-            sender.send(PluginMessage::ParameterChange(#param_enum_ident::#variant(self.#ident.value()))).unwrap();
+            sender.send(PM::parameter_change(#param_enum_ident::#variant(self.#ident.value()))).unwrap();
+        }
+    });
+
+    let set_param_match_arms = params.params.iter().map(|param| {
+        let field = &param.ident;
+        let variant = &Ident::new(
+            param.ident.to_string().to_upper_camel_case().as_str(),
+            Span::call_site()
+        );
+
+        quote! {
+            #param_enum_ident::#variant(value) => {
+                setter.begin_set_parameter(&self.#field);
+                setter.set_parameter(&self.#field, *value);
+                setter.end_set_parameter(&self.#field);
+            }
         }
     });
 
@@ -207,7 +223,8 @@ pub fn rp_params(
             #(#param_struct_fields),*
         }
 
-        #[derive(serde::Serialize, serde::Deserialize)]
+        #[derive(ts_rs::TS, serde::Serialize, serde::Deserialize)]
+        #[ts(export, export_to = "Param.ts")]
         pub enum #param_enum_ident {
             #(#param_enum_fields),*
         }
@@ -215,7 +232,7 @@ pub fn rp_params(
         impl react_plug::ParamType for #param_enum_ident { }
 
         impl #ident {
-            pub fn new(sender: &crossbeam_channel::Sender<PluginMessage>) -> Self {
+            pub fn new<PM: react_plug::PluginMessage<#param_enum_ident> + 'static>(sender: &crossbeam_channel::Sender<PM>) -> Self {
                 Self {
                     #(#param_struct_initializers),*
                 }
@@ -224,14 +241,15 @@ pub fn rp_params(
 
         impl react_plug::Parameters for #ident {
             type ParamType = #param_enum_ident;
-            type PluginToGuiMessage = PluginMessage;
 
-            fn send_all(&self, sender: crossbeam_channel::Sender<Self::PluginToGuiMessage>) {
+            fn send_all<PM: react_plug::PluginMessage<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>) {
                 #(#send_value_fns)*
             }
 
-            fn set_param(&self, setter: &ParamSetter, param: Self::ParamType) {
-                todo!()
+            fn set_param(&self, setter: &ParamSetter, param: &#param_enum_ident) {
+                match param {
+                    #(#set_param_match_arms)*,
+                }
             }
         }
     }}.into()
