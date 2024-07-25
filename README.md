@@ -6,6 +6,8 @@
 A new way to build plug-ins using Rust and React.
 </div>
 
+---
+
 > [!CAUTION]
 > **Turn away before it's too late!**
 > 
