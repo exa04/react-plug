@@ -3,6 +3,7 @@ pub mod editor;
 pub mod prelude {
     pub use react_plug_derive::rp_params;
     pub use crate::editor::create_editor;
+    pub use crate::RPPlugin;
 }
 
 // TODO: Add a macro for deriving this
@@ -40,8 +41,12 @@ pub trait ParamType:
 { }
 
 pub trait RPPlugin: nih_plug::plugin::Plugin {
-    type PluginToGuiMessage: PluginMessage<Self::ParamType>;
-    type ParamType: ParamType;
+    type Parameters: Parameters;
+    type PluginMessage: PluginMessage<<Self::Parameters as Parameters>::ParamType>;
+    type GuiMessage: GuiMessage<<Self::Parameters as Parameters>::ParamType>;
 
-    fn editor_channel(&self) -> (crossbeam_channel::Sender<Self::PluginToGuiMessage>, crossbeam_channel::Receiver<Self::PluginToGuiMessage>);
+    fn editor_channel(&self) -> (
+        crossbeam_channel::Sender<Self::PluginMessage>,
+        crossbeam_channel::Receiver<Self::PluginMessage>
+    );
 }

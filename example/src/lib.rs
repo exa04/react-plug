@@ -3,11 +3,11 @@ mod params;
 use crate::params::*;
 
 use nih_plug::prelude::*;
+use react_plug::prelude::*;
 
 use std::sync::Arc;
 use crossbeam_channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
-use react_plug::{RPPlugin};
 use include_dir::{Dir, include_dir};
 
 pub struct ExamplePlugin {
@@ -30,6 +30,7 @@ impl Default for ExamplePlugin {
 #[ts(export, export_to = "PluginMessage.ts")]
 pub enum PluginMessage {
     ParameterChange(ExampleParamsType),
+    Pong,
 }
 
 impl react_plug::PluginMessage<ExampleParamsType> for PluginMessage {
@@ -42,14 +43,13 @@ impl react_plug::PluginMessage<ExampleParamsType> for PluginMessage {
 #[ts(export, export_to = "GuiMessage.ts")]
 pub enum GuiMessage {
     Init,
+    Ping,
     ParameterChange(ExampleParamsType),
 }
 
 impl react_plug::GuiMessage<ExampleParamsType> for GuiMessage {
     fn is_init(&self) -> bool {
-        if let GuiMessage::Init = self {
-            true
-        } else { false }
+        matches!(self, GuiMessage::Init)
     }
     fn is_param_update_and<F: FnOnce(&ExampleParamsType)>(&self, action: F) {
         if let GuiMessage::ParameterChange(param_type) = self {
@@ -92,11 +92,17 @@ impl Plugin for ExamplePlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        Some(Box::new(react_plug::editor::create_editor::<PluginMessage, GuiMessage, ExampleParams>(
+        Some(Box::new(create_editor(
             self.params.clone(),
-            self.editor_channel(),
-            Some("example".into()),
+            Some("example"),
             &EDITOR_DIR,
+            self.editor_channel(),
+            |gui_message: GuiMessage, sender| {
+                // Handle GUI messages here
+                if let GuiMessage::Ping = gui_message {
+                    sender.send(PluginMessage::Pong).unwrap();
+                }
+            },
         ).with_developer_mode(true)))
     }
 
@@ -124,10 +130,11 @@ impl Plugin for ExamplePlugin {
 }
 
 impl RPPlugin for ExamplePlugin {
-    type PluginToGuiMessage = PluginMessage;
-    type ParamType = <params::ExampleParams as react_plug::Parameters>::ParamType;
+    type Parameters = ExampleParams;
+    type PluginMessage = PluginMessage;
+    type GuiMessage = GuiMessage;
 
-    fn editor_channel(&self) -> (Sender<Self::PluginToGuiMessage>, Receiver<Self::PluginToGuiMessage>) {
+    fn editor_channel(&self) -> (Sender<PluginMessage>, Receiver<PluginMessage>) {
         self.editor_channel.clone()
     }
 }

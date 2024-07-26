@@ -1,40 +1,45 @@
+use std::any::Any;
 use std::sync::Arc;
 
 use include_dir::Dir;
+use nih_plug::editor::ParentWindowHandle;
 use nih_plug::nih_log;
+use nih_plug::prelude::GuiContext;
 use nih_plug_webview::{HTMLSource, WebViewEditor};
 use nih_plug_webview::http::Response;
 
 use crate::{Parameters, ParamType, PluginMessage, GuiMessage};
 
-pub fn create_editor<PM, GM, P>
+pub fn create_editor<P, PM, GM, F>
 (
     params: Arc<P>,
+    protocol: Option<&'static str>,
+    dir: &'static Dir,
     editor_channel: (crossbeam_channel::Sender<PM>, crossbeam_channel::Receiver<PM>),
-    _protocol: Option<&'static str>,
-    dir: &'static Dir
+    gui_message_handler: F,
 ) -> WebViewEditor
 where
+    P: Parameters,
     PM: PluginMessage<P::ParamType> + 'static,
     GM: GuiMessage<P::ParamType> + 'static,
-    P: Parameters
+    F: Fn(GM, crossbeam_channel::Sender<PM>) + 'static + Send + Sync,
 {
     let plugin_sender = editor_channel.0.clone();
     let plugin_receiver = editor_channel.1.clone();
-    let protocol: &'static str = None.unwrap_or("plugin".into());
+    let protocol: &'static str = protocol.unwrap_or("plugin");
 
     #[cfg(target_os = "windows")]
     let url_scheme = format!("http://{}.localhost", protocol);
+    // TODO: Not tested on Linux / MacOS
     #[cfg(not(target_os = "windows"))]
-    let url_scheme = format!("{}://localhost", protocol); // TODO: Not tested on Linux / MacOS
+    let url_scheme = format!("{}://localhost", protocol);
 
     let url = HTMLSource::URL(Box::leak(url_scheme.into_boxed_str()));
 
     // TODO: Size is not relative to current DPI
-    // TODO: Leaking the URL scheme string, is this safe?
     WebViewEditor::new(url, (700, 500))
         // TODO: Run with hot-reload Vite server in development? Maybe?
-        .with_custom_protocol("plugin".into(), move |req| {
+        .with_custom_protocol(protocol.parse().unwrap(), move |req| {
             let path = req.uri().path();
 
             let path = if path == "/" {
@@ -71,6 +76,7 @@ where
                     message.is_param_update_and(|param| {
                         params.set_param(&setter, param);
                     });
+                    gui_message_handler(message, plugin_sender.clone());
                 } else { nih_log!("Received invalid message from GUI!") }
             }
             while !plugin_receiver.is_empty() {

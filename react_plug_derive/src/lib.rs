@@ -99,6 +99,7 @@ impl Parse for RPParamType {
 
 // TODO: Support attributes and macros
 // TODO: Skipping fields
+// TODO: EnumParam support
 #[proc_macro]
 pub fn rp_params(
     input: proc_macro::TokenStream
@@ -131,98 +132,125 @@ pub fn rp_params(
         quote!{#ident(#ty)}
     });
 
-    /// Fields of the param struct
-    let param_struct_fields = params.params.iter().map(|param| {
-        let ident = &param.ident;
-        let ty = &param.ty;
-        let id = ident.to_string();
+    let param_struct = {
+        let param_struct_fields = params.params.iter().map(|param| {
+            let ident = &param.ident;
+            let ty = &param.ty;
+            let id = ident.to_string();
 
-        quote! {
+            quote! {
             #[id = #id]
             pub #ident: #ty
         }
-    });
-
-    /// Content of Self declaration in new() constructor
-    let param_struct_initializers = params.params.iter().map(|param| {
-        let ident = &param.ident;
-        let ty = &param.ty;
-
-        let required = match ty {
-            RPParamType::FloatParam => { vec!["name", "value", "range"] },
-            RPParamType::IntParam => { vec!["name", "value", "range"] },
-            RPParamType::BoolParam => { vec!["name", "value"] }
-        };
-
-        let (required_params, modifier_params): (Vec<_>, Vec<_>) = param.fields
-            .iter()
-            .partition(|field| required.contains(&&*field.ident.to_string()));
-
-        let mut args: Punctuated<Expr, Token![,]> = Punctuated::new();
-
-        required.iter().for_each(|name| {
-            let expr = required_params.iter()
-                .find(|field| *field.ident.to_string() == name.to_string())
-                .unwrap().expr.clone();
-            args.push(expr);
         });
-
-        let modifiers = modifier_params.iter().map(|param| -> TokenStream {
-            let arg = &param.expr;
-
-            let modifier = Ident::new(format!("with_{}", &param.ident.to_string()).as_str(), Span::call_site());
-
-            quote! {.#modifier(#arg)}
-        });
-
-        let variant = variant(&param.ident);
-
+        
         quote! {
-            #ident: #ty::new(
-                #args
-            )
-                #(#modifiers)*
-                .with_callback({
-                    let sender = sender.clone();
-                    std::sync::Arc::new(move |value| {
-                        sender.send(PM::parameter_change(#param_enum_ident::#variant(value))).unwrap();
-                    })
-                })
-        }
-    });
-
-    /// Content of send_all fn
-    let send_value_fns = params.params.iter().map(|param| {
-        let ident = &param.ident;
-        let variant = variant(&param.ident);
-
-        quote!{
-            sender.send(PM::parameter_change(#param_enum_ident::#variant(self.#ident.value()))).unwrap();
-        }
-    });
-
-    let set_param_match_arms = params.params.iter().map(|param| {
-        let field = &param.ident;
-        let variant = &Ident::new(
-            param.ident.to_string().to_upper_camel_case().as_str(),
-            Span::call_site()
-        );
-
-        quote! {
-            #param_enum_ident::#variant(value) => {
-                setter.begin_set_parameter(&self.#field);
-                setter.set_parameter(&self.#field, *value);
-                setter.end_set_parameter(&self.#field);
+            #[derive(Params)]
+            pub struct #ident {
+                #(#param_struct_fields),*
             }
         }
-    });
+    };
+
+    let impl_block = {
+        let initializers = params.params.iter().map(|param| {
+            let ident = &param.ident;
+            let ty = &param.ty;
+
+            let required = match ty {
+                RPParamType::FloatParam => { vec!["name", "value", "range"] },
+                RPParamType::IntParam => { vec!["name", "value", "range"] },
+                RPParamType::BoolParam => { vec!["name", "value"] }
+            };
+
+            let (required_params, modifier_params): (Vec<_>, Vec<_>) = param.fields.iter()
+                .partition(|field| required.contains(&&*field.ident.to_string()));
+
+            let mut args: Punctuated<Expr, Token![,]> = Punctuated::new();
+
+            required.iter().for_each(|name| {
+                let expr = required_params.iter()
+                    .find(|field| *field.ident.to_string() == name.to_string())
+                    .unwrap().expr.clone();
+                args.push(expr);
+            });
+
+            let modifiers = modifier_params.iter().map(|param| -> TokenStream {
+                let arg = &param.expr;
+
+                let modifier = Ident::new(format!("with_{}", &param.ident.to_string()).as_str(), Span::call_site());
+
+                quote! {.#modifier(#arg)}
+            });
+
+            let variant = variant(&param.ident);
+
+            quote! {
+                #ident: #ty::new(
+                    #args
+                )
+                    #(#modifiers)*
+                    .with_callback({
+                        let sender = sender.clone();
+                        std::sync::Arc::new(move |value| {
+                            sender.send(PM::parameter_change(#param_enum_ident::#variant(value))).unwrap();
+                        })
+                    })
+            }
+        });
+
+        quote! {
+            impl #ident {
+                pub fn new<PM: react_plug::PluginMessage<#param_enum_ident> + 'static>(sender: &crossbeam_channel::Sender<PM>) -> Self {
+                    Self {
+                        #(#initializers),*
+                    }
+                }
+            }
+        }
+    };
+
+    let impl_parameters_block = {
+        let send_value_fns = params.params.iter().map(|param| {
+            let ident = &param.ident;
+            let variant = variant(&param.ident);
+
+            quote!{
+                sender.send(PM::parameter_change(#param_enum_ident::#variant(self.#ident.value()))).unwrap();
+            }
+        });
+
+        let set_param_match_arms = params.params.iter().map(|param| {
+            let field = &param.ident;
+            let variant = variant(&param.ident);
+
+            quote! {
+                #param_enum_ident::#variant(value) => {
+                    setter.begin_set_parameter(&self.#field);
+                    setter.set_parameter(&self.#field, *value);
+                    setter.end_set_parameter(&self.#field);
+                }
+            }
+        });
+
+        quote! {
+            impl react_plug::Parameters for #ident {
+                type ParamType = #param_enum_ident;
+
+                fn send_all<PM: react_plug::PluginMessage<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>) {
+                    #(#send_value_fns)*
+                }
+
+                fn set_param(&self, setter: &ParamSetter, param: &#param_enum_ident) {
+                    match param {
+                        #(#set_param_match_arms)*,
+                    }
+                }
+            }
+        }
+    };
 
     {quote! {
-        #[derive(Params)]
-        pub struct #ident {
-            #(#param_struct_fields),*
-        }
-
         #[derive(ts_rs::TS, serde::Serialize, serde::Deserialize)]
         #[ts(export, export_to = "Param.ts")]
         pub enum #param_enum_ident {
@@ -231,26 +259,10 @@ pub fn rp_params(
 
         impl react_plug::ParamType for #param_enum_ident { }
 
-        impl #ident {
-            pub fn new<PM: react_plug::PluginMessage<#param_enum_ident> + 'static>(sender: &crossbeam_channel::Sender<PM>) -> Self {
-                Self {
-                    #(#param_struct_initializers),*
-                }
-            }
-        }
+        #param_struct
 
-        impl react_plug::Parameters for #ident {
-            type ParamType = #param_enum_ident;
+        #impl_block
 
-            fn send_all<PM: react_plug::PluginMessage<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>) {
-                #(#send_value_fns)*
-            }
-
-            fn set_param(&self, setter: &ParamSetter, param: &#param_enum_ident) {
-                match param {
-                    #(#set_param_match_arms)*,
-                }
-            }
-        }
+        #impl_parameters_block
     }}.into()
 }
