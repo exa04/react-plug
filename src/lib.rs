@@ -1,13 +1,14 @@
 pub mod editor;
 
 pub mod prelude {
-    pub use react_plug_derive::rp_params;
+    pub use react_plug_derive::*;
     pub use crate::editor::create_editor;
     pub use crate::RPPlugin;
 }
 
-// TODO: Add a macro for deriving this
-pub trait PluginMessage<P: ParamType>:
+pub use react_plug_derive::*;
+
+pub trait PluginMsg<P: ParamType>:
 serde::Serialize +
 serde::de::DeserializeOwned +
 Send +
@@ -16,8 +17,7 @@ ts_rs::TS
     fn parameter_change(param_type: P) -> Self;
 }
 
-// TODO: Add a macro for deriving this
-pub trait GuiMessage<P: ParamType>:
+pub trait GuiMsg<P: ParamType>:
 serde::Serialize +
 serde::de::DeserializeOwned +
 Send +
@@ -30,7 +30,7 @@ ts_rs::TS
 pub trait Parameters: nih_plug::params::Params {
     type ParamType: ParamType;
 
-    fn send_all<PM: PluginMessage<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>);
+    fn send_all<PM: PluginMsg<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>);
     fn set_param(&self, setter: &nih_plug::context::gui::ParamSetter, param: &Self::ParamType);
 }
 
@@ -42,11 +42,11 @@ pub trait ParamType:
 
 pub trait RPPlugin: nih_plug::plugin::Plugin {
     type Parameters: Parameters;
-    type PluginMessage: PluginMessage<<Self::Parameters as Parameters>::ParamType>;
-    type GuiMessage: GuiMessage<<Self::Parameters as Parameters>::ParamType>;
+    type PluginMsg: PluginMsg<<Self::Parameters as Parameters>::ParamType>;
+    type GuiMsg: GuiMsg<<Self::Parameters as Parameters>::ParamType>;
 
     fn editor_channel(&self) -> (
-        crossbeam_channel::Sender<Self::PluginMessage>,
-        crossbeam_channel::Receiver<Self::PluginMessage>
+        crossbeam_channel::Sender<Self::PluginMsg>,
+        crossbeam_channel::Receiver<Self::PluginMsg>
     );
 }

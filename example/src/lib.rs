@@ -26,36 +26,14 @@ impl Default for ExamplePlugin {
     }
 }
 
-#[derive(Serialize, Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "PluginMessage.ts")]
-pub enum PluginMessage {
-    ParameterChange(ExampleParamsType),
-    Pong,
-}
-
-impl react_plug::PluginMessage<ExampleParamsType> for PluginMessage {
-    fn parameter_change(param_type: ExampleParamsType) -> Self {
-        Self::ParameterChange(param_type)
-    }
-}
-
-#[derive(Serialize, Deserialize, ts_rs::TS)]
-#[ts(export, export_to = "GuiMessage.ts")]
+#[gui_message(params = ExampleParams)]
 pub enum GuiMessage {
-    Init,
     Ping,
-    ParameterChange(ExampleParamsType),
 }
 
-impl react_plug::GuiMessage<ExampleParamsType> for GuiMessage {
-    fn is_init(&self) -> bool {
-        matches!(self, GuiMessage::Init)
-    }
-    fn is_param_update_and<F: FnOnce(&ExampleParamsType)>(&self, action: F) {
-        if let GuiMessage::ParameterChange(param_type) = self {
-            action(param_type);
-        }
-    }
+#[plugin_message(params = ExampleParams)]
+pub enum PluginMessage {
+    Pong,
 }
 
 static EDITOR_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/gui/dist");
@@ -131,8 +109,8 @@ impl Plugin for ExamplePlugin {
 
 impl RPPlugin for ExamplePlugin {
     type Parameters = ExampleParams;
-    type PluginMessage = PluginMessage;
-    type GuiMessage = GuiMessage;
+    type PluginMsg = PluginMessage;
+    type GuiMsg = GuiMessage;
 
     fn editor_channel(&self) -> (Sender<PluginMessage>, Receiver<PluginMessage>) {
         self.editor_channel.clone()

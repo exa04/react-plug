@@ -1,7 +1,5 @@
 use nih_plug::prelude::*;
 use react_plug::prelude::*;
-use serde::{Deserialize, Serialize};
-use crate::PluginMessage;
 
 rp_params! {
     ExampleParams {

@@ -1,14 +1,11 @@
-use std::any::Any;
 use std::sync::Arc;
 
 use include_dir::Dir;
-use nih_plug::editor::ParentWindowHandle;
 use nih_plug::nih_log;
-use nih_plug::prelude::GuiContext;
 use nih_plug_webview::{HTMLSource, WebViewEditor};
 use nih_plug_webview::http::Response;
 
-use crate::{Parameters, ParamType, PluginMessage, GuiMessage};
+use crate::{Parameters, PluginMsg, GuiMsg};
 
 pub fn create_editor<P, PM, GM, F>
 (
@@ -20,8 +17,8 @@ pub fn create_editor<P, PM, GM, F>
 ) -> WebViewEditor
 where
     P: Parameters,
-    PM: PluginMessage<P::ParamType> + 'static,
-    GM: GuiMessage<P::ParamType> + 'static,
+    PM: PluginMsg<P::ParamType> + 'static,
+    GM: GuiMsg<P::ParamType> + 'static,
     F: Fn(GM, crossbeam_channel::Sender<PM>) + 'static + Send + Sync,
 {
     let plugin_sender = editor_channel.0.clone();

@@ -1,101 +1,12 @@
 extern crate proc_macro;
-
 use heck::ToUpperCamelCase;
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::{quote, ToTokens};
-use syn::{braced, Error, Expr, Token, token, Type};
-use syn::parse::{Parse, ParseStream};
+use quote::quote;
+use syn::{Data, DataEnum, DeriveInput, Expr, Meta, parse_macro_input, Token};
 use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
+use params::*;
 
-struct RPParams {
-    pub ident: Ident,
-    pub brace_token: token::Brace,
-    pub params: Punctuated<RPParam, Token![,]>
-}
-
-impl Parse for RPParams {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let content;
-        Ok(Self{
-            ident: input.parse()?,
-            brace_token: braced!(content in input),
-            params: content.parse_terminated(RPParam::parse, Token![,])?,
-        })
-    }
-}
-struct RPParam {
-    pub ident: Ident,
-    pub colon_token: Token![:],
-    pub ty: RPParamType,
-    pub brace_token: token::Brace,
-    pub fields: Punctuated<RPParamField, Token![,]>
-}
-
-impl Parse for RPParam {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let content;
-
-        Ok(Self{
-            ident: input.parse()?,
-            colon_token: input.parse()?,
-            ty: input.parse()?,
-            brace_token: braced!(content in input),
-            fields: content.parse_terminated(RPParamField::parse, Token![,])?,
-        })
-    }
-}
-
-struct RPParamField {
-    pub ident: Ident,
-    pub colon_token: Token![:],
-    pub expr: Expr,
-}
-
-impl Parse for RPParamField {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self{
-            ident: input.parse()?,
-            colon_token: input.parse()?,
-            expr: input.parse()?,
-        })
-    }
-}
-
-enum RPParamType {
-    FloatParam,
-    IntParam,
-    BoolParam
-}
-
-impl ToTokens for RPParamType {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ident = match self {
-            RPParamType::FloatParam => Ident::new("FloatParam", Span::call_site()),
-            RPParamType::IntParam => Ident::new("IntParam", Span::call_site()),
-            RPParamType::BoolParam => Ident::new("BoolParam", Span::call_site()),
-        };
-        ident.to_tokens(tokens);
-    }
-}
-
-impl Parse for RPParamType {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let ty: Type = input
-            .parse::<Type>()?;
-
-        let type_name = ty
-            .to_token_stream()
-            .to_string();
-
-        match type_name.as_str() {
-            "FloatParam" => Ok(RPParamType::FloatParam),
-            "IntParam" => Ok(RPParamType::IntParam),
-            "BoolParam" => Ok(RPParamType::BoolParam),
-            _ => Err(Error::new(ty.span(), format!("Unknown param type: {}", type_name)))
-        }
-    }
-}
+mod params;
 
 // TODO: Support attributes and macros
 // TODO: Skipping fields
@@ -106,10 +17,10 @@ pub fn rp_params(
 ) -> proc_macro::TokenStream {
     let params = syn::parse::<RPParams>(input).unwrap();
 
-    let ident = &params.ident;
+    let struct_ident = &params.ident;
 
-    let param_enum_ident = Ident::new(
-        format!("{}Type", ident.to_string().to_upper_camel_case()).as_str(),
+    let enum_ident = Ident::new(
+        format!("{}Type", struct_ident.to_string().to_upper_camel_case()).as_str(),
         Span::call_site()
     );
 
@@ -118,19 +29,28 @@ pub fn rp_params(
         Span::call_site()
     ) }
 
-    /// Fields of the param enum
-    let param_enum_fields = params.params.iter().map(|param| {
-        let ty = match &param.ty {
-            RPParamType::FloatParam => {quote!{f32}}
-            RPParamType::IntParam => {quote!{i32}}
-            RPParamType::BoolParam => {quote!{bool}}
-        };
-        let ident = Ident::new(
-            param.ident.to_string().to_upper_camel_case().as_str(),
-            Span::call_site()
-        );
-        quote!{#ident(#ty)}
-    });
+    let param_enum = {
+        let param_enum_fields = params.params.iter().map(|param| {
+            let ty = match &param.ty {
+                RPParamType::FloatParam => {quote!{f32}}
+                RPParamType::IntParam => {quote!{i32}}
+                RPParamType::BoolParam => {quote!{bool}}
+            };
+            let ident = Ident::new(
+                param.ident.to_string().to_upper_camel_case().as_str(),
+                Span::call_site()
+            );
+            quote!{#ident(#ty)}
+        });
+
+        quote!{
+            #[derive(ts_rs::TS, serde::Serialize, serde::Deserialize)]
+            #[ts(export, export_to = "Param.ts")]
+            pub enum #enum_ident {
+                #(#param_enum_fields),*
+            }
+        }
+    };
 
     let param_struct = {
         let param_struct_fields = params.params.iter().map(|param| {
@@ -146,7 +66,7 @@ pub fn rp_params(
         
         quote! {
             #[derive(Params)]
-            pub struct #ident {
+            pub struct #struct_ident {
                 #(#param_struct_fields),*
             }
         }
@@ -193,15 +113,15 @@ pub fn rp_params(
                     .with_callback({
                         let sender = sender.clone();
                         std::sync::Arc::new(move |value| {
-                            sender.send(PM::parameter_change(#param_enum_ident::#variant(value))).unwrap();
+                            sender.send(PM::parameter_change(#enum_ident::#variant(value))).unwrap();
                         })
                     })
             }
         });
 
         quote! {
-            impl #ident {
-                pub fn new<PM: react_plug::PluginMessage<#param_enum_ident> + 'static>(sender: &crossbeam_channel::Sender<PM>) -> Self {
+            impl #struct_ident {
+                pub fn new<PM: react_plug::PluginMsg<#enum_ident> + 'static>(sender: &crossbeam_channel::Sender<PM>) -> Self {
                     Self {
                         #(#initializers),*
                     }
@@ -216,7 +136,7 @@ pub fn rp_params(
             let variant = variant(&param.ident);
 
             quote!{
-                sender.send(PM::parameter_change(#param_enum_ident::#variant(self.#ident.value()))).unwrap();
+                sender.send(PM::parameter_change(#enum_ident::#variant(self.#ident.value()))).unwrap();
             }
         });
 
@@ -225,7 +145,7 @@ pub fn rp_params(
             let variant = variant(&param.ident);
 
             quote! {
-                #param_enum_ident::#variant(value) => {
+                #enum_ident::#variant(value) => {
                     setter.begin_set_parameter(&self.#field);
                     setter.set_parameter(&self.#field, *value);
                     setter.end_set_parameter(&self.#field);
@@ -234,14 +154,14 @@ pub fn rp_params(
         });
 
         quote! {
-            impl react_plug::Parameters for #ident {
-                type ParamType = #param_enum_ident;
+            impl react_plug::Parameters for #struct_ident {
+                type ParamType = #enum_ident;
 
-                fn send_all<PM: react_plug::PluginMessage<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>) {
+                fn send_all<PM: react_plug::PluginMsg<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>) {
                     #(#send_value_fns)*
                 }
 
-                fn set_param(&self, setter: &ParamSetter, param: &#param_enum_ident) {
+                fn set_param(&self, setter: &ParamSetter, param: &#enum_ident) {
                     match param {
                         #(#set_param_match_arms)*,
                     }
@@ -251,13 +171,9 @@ pub fn rp_params(
     };
 
     {quote! {
-        #[derive(ts_rs::TS, serde::Serialize, serde::Deserialize)]
-        #[ts(export, export_to = "Param.ts")]
-        pub enum #param_enum_ident {
-            #(#param_enum_fields),*
-        }
+        #param_enum
 
-        impl react_plug::ParamType for #param_enum_ident { }
+        impl react_plug::ParamType for #enum_ident { }
 
         #param_struct
 
@@ -265,4 +181,92 @@ pub fn rp_params(
 
         #impl_parameters_block
     }}.into()
+}
+
+#[proc_macro_attribute]
+pub fn plugin_message(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let args = parse_macro_input!(args with Punctuated::<Meta, syn::Token![,]>::parse_terminated);
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let param = &args.iter()
+        .find(|arg| arg.path().is_ident("params"))
+        .expect("Missing params argument")
+        .require_name_value()
+        .expect("Params argument needs to be given a value")
+        .value;
+
+    let name = input.ident;
+    let expanded = match input.data {
+        Data::Enum(DataEnum { variants, .. }) => {
+            let mut new_variants = variants.clone();
+
+            // Define new variants
+            new_variants.push(syn::parse_quote! { ParameterChange(ExampleParamsType) });
+
+            // Generate the enum with the new variants
+            quote! {
+                #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS)]
+                #[ts(export, export_to = "PluginMessage.ts")]
+                pub enum #name {
+                    #new_variants
+                }
+
+                impl react_plug::PluginMsg<<#param as react_plug::Parameters>::ParamType> for #name {
+                    fn parameter_change(param_type: <#param as react_plug::Parameters>::ParamType) -> Self {
+                        Self::ParameterChange(param_type)
+                    }
+                }
+            }
+        },
+        _ => panic!("Not an enum"),
+    };
+
+    expanded.into()
+}
+
+#[proc_macro_attribute]
+pub fn gui_message(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let args = parse_macro_input!(args with Punctuated::<Meta, syn::Token![,]>::parse_terminated);
+    let input = parse_macro_input!(input as DeriveInput);
+
+    let param = &args.iter()
+        .find(|arg| arg.path().is_ident("params"))
+        .expect("Missing params argument")
+        .require_name_value()
+        .expect("Params argument needs to be given a value")
+        .value;
+
+    let name = input.ident;
+    let expanded = match input.data {
+        Data::Enum(DataEnum { variants, .. }) => {
+            let mut new_variants = variants.clone();
+
+            // Define new variants
+            new_variants.push(syn::parse_quote! { Init });
+            new_variants.push(syn::parse_quote! { ParameterChange(<#param as react_plug::Parameters>::ParamType) });
+
+            // Generate the enum with the new variants
+            quote! {
+                #[derive(Serialize, Deserialize, ts_rs::TS)]
+                #[ts(export, export_to = "GuiMessage.ts")]
+                pub enum #name {
+                    #new_variants
+                }
+
+                impl react_plug::GuiMsg<<#param as react_plug::Parameters>::ParamType> for #name {
+                    fn is_init(&self) -> bool {
+                        matches!(self, Self::Init)
+                    }
+                    fn is_param_update_and<F: FnOnce(&<#param as react_plug::Parameters>::ParamType)>(&self, action: F) {
+                        if let Self::ParameterChange(param_type) = self {
+                            action(param_type);
+                        }
+                    }
+                }
+            }
+        },
+        _ => panic!("Not an enum"),
+    };
+
+    expanded.into()
 }
