@@ -1,39 +1,32 @@
-import { createContext, useContext } from 'react';
+import {createContext, type Dispatch, type SetStateAction, useContext, useState} from 'react';
 
-export type FloatParam = {
-  type: 'FloatParam';
+export interface Parameter {
+  type: string,
+  name: string,
+  rawValue: any,
+  setValue: Dispatch<SetStateAction<any>>
+}
+
+export class FloatParam implements Parameter {
+  type = 'FloatParam';
   name: string;
-  id: string;
-  value: number;
-  setValue: (newValue: number) => void;
-  format: (value: number) => string;
-  suffix: string;
-};
+  rawValue: number;
+  setValue: Dispatch<SetStateAction<number>>;
+  range: [number, number];
 
-export type IntParam = {
-  type: 'IntParam';
-  name: string;
-  id: string;
-  value: number;
-  setValue: (newValue: number) => void;
-  format: (value: number) => string;
-  suffix: string;
-};
-
-export type BooleanParameter = {
-  type: 'BooleanParam';
-  name: string;
-  id: string;
-  value: boolean;
-  setValue: (newValue: boolean) => void;
-  format: (value: boolean) => string;
-  suffix: string;
-};
-
-export type Parameter = FloatParam | IntParam | BooleanParameter;
+  constructor(
+    name: string,
+    defaultValue: number,
+    range: [number, number],
+  ) {
+    this.name = name;
+    [this.rawValue, this.setValue] = useState(defaultValue);
+    this.range = range;
+  }
+}
 
 export interface ContextType {
-  parameters: Parameter[];
+  parameters: {[id: string]: Parameter};
 }
 
 export const PluginContext = createContext<ContextType | undefined>(undefined);
@@ -45,3 +38,11 @@ export const usePluginContext = () => {
   }
   return context;
 };
+
+export const getParameter = (name: string) => {
+  const {parameters} = usePluginContext();
+  if (!parameters[name]) {
+    throw new Error(`Parameter ${name} not found`);
+  }
+  return parameters[name];
+}

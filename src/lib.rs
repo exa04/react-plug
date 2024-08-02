@@ -35,7 +35,7 @@ pub trait Parameters: nih_plug::params::Params {
 }
 
 pub trait ParamType:
-    serde::Serialize +
+    serde::Serialize + 
     serde::Deserialize<'static> +
     ts_rs::TS
 { }

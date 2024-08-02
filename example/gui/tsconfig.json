@@ -1,6 +1,6 @@
 {
   "files": [],
-  "include": ["../bindings/**/*.ts"],
+  "include": ["bindings/**/*.ts"],
   "references": [
     {
       "path": "./tsconfig.app.json"
