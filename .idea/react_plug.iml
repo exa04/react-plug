@@ -5,6 +5,8 @@
       <sourceFolder url="file://$MODULE_DIR$/react_plug_derive/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/react_plug_derive/tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/example/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/xtask/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/react_plug_derive/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
