@@ -1,120 +1,32 @@
-import {createContext, type Dispatch, FC, type SetStateAction, useContext, useEffect, useState} from 'react';
-
-declare global {
-  interface Window {
-    ipc: { postMessage: (message: string) => void };
-    onPluginMessage: (message: Object) => void;
-  }
-}
-
-function sendToPlugin(msg: any) {
-  if(window.ipc === undefined) {
-    console.warn("No IPC found!")
-    return;
-  }
-  window.ipc.postMessage(JSON.stringify(msg));
-}
-
-interface Parameter<T> {
-  type: string,
-  id: string, // This ID will be used to receive and send param updates
-  name: string,
-  defaultValue: T,
-  value: T,
-  setValue: Dispatch<SetStateAction<T>> | ((value: T) => void)
-  _setDisplayedValue: Dispatch<SetStateAction<T>>; // would love to make this package-private, but it's not possible in JS :(
-}
-
-class FloatParam implements Parameter<number> {
-  type = 'FloatParam';
-  id: string;
-  name: string;
-  defaultValue: number;
-  value: number;
-  rawValue: number;
-  setValue: ((value: number) => void);
-  range: [number, number];
-  _setDisplayedValue: Dispatch<SetStateAction<number>>;
-
-  constructor(
-    id: string,
-    name: string,
-    defaultValue: number,
-    range: [number, number],
-  ) {
-    this.id = id;
-    this.name = name;
-
-    this.defaultValue = defaultValue;
-    const [rawValue, setValue] = useState(defaultValue);
-    this._setDisplayedValue = setValue;
-    this.value = defaultValue;
-
-    this.range = range;
-
-    useEffect(() => {
-      this.value = this.rawValue; // TODO: Formatting etc.
-    }, [rawValue]);
-
-    this.rawValue = rawValue;
-
-    this.setValue = (value: number) => {
-      sendToPlugin({ "ParameterChange": { [id]: value } })
-      setValue(value);
-    }
-  }
-}
-
-class BoolParam implements Parameter<boolean> {
-  type = 'BoolParam';
-  id: string;
-  name: string;
-  defaultValue: boolean;
-  value: boolean;
-  setValue: Dispatch<SetStateAction<boolean>>;
-  _setDisplayedValue: Dispatch<SetStateAction<boolean>>;
-
-  constructor(
-    id: string,
-    name: string,
-    defaultValue: boolean,
-  ) {
-    this.id = id;
-    this.name = name;
-    this.defaultValue = defaultValue;
-    [this.value, this.setValue] = useState(defaultValue);
-    this._setDisplayedValue = this.setValue;
-  }
-}
+import { createContext, FC, ReactNode, useContext, useEffect } from 'react';
+import * as params from 'react-plug/Parameters';
+import * as ranges from 'react-plug/Ranges';
+import * as formatters from 'react-plug/Formatters';
+import { sendToPlugin, isParameterChange } from 'react-plug/util';
 
 interface ContextType {
   parameters: Params
 }
 
-type Params = {
-  gain: FloatParam,
-  boolTest: BoolParam,
-  // TODO: Codegen
-};
-
 const PluginContext = createContext<ContextType | undefined>(undefined);
 
-const PluginProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
-  const parameters: Params  = {
-    gain: new FloatParam("Gain", "Gain", 1, [0.5, 2]),
-    boolTest: new BoolParam("BoolTest", "Bool Test", false)
-    // TODO: Codegen
+type Params = {
+  gain: params.FloatParam,
+  boolTest: params.BoolParam,
+  intTest: params.IntParam
+};
+
+const PluginProvider: FC<{ children: ReactNode }> = ({ children }) => {
+  const parameters: Params = {
+    gain: new params.FloatParam("Gain", "Gain", 1, new ranges.SkewedRange(0.031622775, 31.622776, 0.19889385), { unit: " dB", formatter: formatters.v2s_f32_gain_to_db(2), }), boolTest: new params.BoolParam("BoolTest", "Bool Test", false, { }), intTest: new params.IntParam("IntTest", "Int Test", 0, new ranges.LinearRange(0, 10), { }), 
   };
 
-  const isParameterChange = (message: Object): message is { "ParameterChange": any } => {
-    return typeof message === "object" && "ParameterChange" in message;
-  }
-
   useEffect(() => {
-    sendToPlugin("Init");
+    sendToPlugin('Init');
 
-    window.onPluginMessage = (message: Object) => {
-      console.log(message);
+    // TODO: This kinda sucks
+    (window as any).onPluginMessage = (message: Object) => {
+      console.log('Message (Plugin -> GUI)', message);
       if(isParameterChange(message)) {
         const [id, value] = Object.entries(message.ParameterChange)[0];
 
@@ -124,10 +36,12 @@ const PluginProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
         if(param === undefined)
           throw new Error('usePluginContext must be used within a provider');
 
-        if(param.type == "FloatParam")
-          (param as FloatParam)._setDisplayedValue(value as unknown as number);
-        else if(param.type == "BoolParam")
-          (param as BoolParam)._setDisplayedValue(value as unknown as boolean);
+        if(param.type == 'FloatParam')
+          (param as params.FloatParam)._setDisplayedValue(value as unknown as number);
+        else if(param.type == 'IntParam')
+          (param as params.IntParam)._setDisplayedValue(value as unknown as number);
+        else if(param.type == 'BoolParam')
+          (param as params.BoolParam)._setDisplayedValue(value as unknown as boolean);
       }
     };
   }, []);

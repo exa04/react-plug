@@ -1,8 +1,8 @@
 extern crate proc_macro;
-use heck::ToUpperCamelCase;
+use heck::{ToLowerCamelCase, ToUpperCamelCase};
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::quote;
-use syn::{Data, DataEnum, DeriveInput, Expr, Meta, parse_macro_input, Token};
+use quote::{quote, ToTokens};
+use syn::{Data, DataEnum, DeriveInput, Expr, ExprStruct, Meta, parse_macro_input, Token};
 use syn::punctuated::Punctuated;
 use params::*;
 
@@ -12,7 +12,7 @@ mod params;
 // TODO: Skipping fields
 // TODO: EnumParam support
 #[proc_macro]
-pub fn rp_params(
+pub fn rp_params<'a>(
     input: proc_macro::TokenStream
 ) -> proc_macro::TokenStream {
     let params = syn::parse::<RPParams>(input).unwrap();
@@ -170,6 +170,305 @@ pub fn rp_params(
         }
     };
 
+    let test_block = {
+        let declarations = params.params.iter().map(|param| {
+            let ident = &param.ident;
+            let ty = &param.ty;
+            let id = ident.to_string().to_lower_camel_case();
+
+            match ty {
+                RPParamType::FloatParam => format!("{}: params.FloatParam", id),
+                RPParamType::IntParam => format!("{}: params.IntParam", id),
+                RPParamType::BoolParam => format!("{}: params.BoolParam", id)
+            }
+        }).collect::<Vec<String>>().join(",\n  ");
+
+        let mut initializer: String = String::new();
+        let mut expressions: Vec<Expr> = vec![];
+
+        params.params.iter().for_each(|param| {
+            initializer.push_str(&format!("{}: ", (&param.ident).to_string().to_lower_camel_case()));
+
+            let field_by_id = |id: &str| param.fields.iter()
+                .find(|field| field.ident == id)
+                .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
+                .expr
+                .clone();
+
+            let optional_field_by_id = |id: &str| param.fields.iter()
+                .find(|field| field.ident == id)
+                .map(|field| field.expr.clone());
+
+            match &param.ty {
+                RPParamType::FloatParam => {
+                    expressions.push(field_by_id("name"));
+                    expressions.push(field_by_id("value"));
+
+                    let range = match field_by_id("range") {
+                        Expr::Struct(range) => {
+                            let mut range_to_ts = |range: &ExprStruct| {
+                                let field_by_id = |range: &ExprStruct, id: &str| -> Expr {
+                                    range.fields.iter()
+                                        .find(|field| field.member.to_token_stream().to_string() == id)
+                                        .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
+                                        .expr.clone()
+                                };
+
+                                let path = range.path.segments.iter()
+                                    .map(|segment| segment.ident.to_string())
+                                    .collect::<Vec<String>>();
+
+                                let range_type = match &path[..] {
+                                    [.., r, t] => {
+                                        if r != "FloatRange" { panic!("Invalid range type: {}", r); }
+                                        t
+                                    },
+                                    [t] => t,
+                                    _ => panic!("Invalid range type")
+                                };
+
+                                match range_type.as_str() {
+                                    "Linear" => {
+                                        expressions.push(field_by_id(range, "min"));
+                                        expressions.push(field_by_id(range, "max"));
+                                        "new ranges.LinearRange({}, {})".to_string()
+                                    }
+                                    "Skewed" => {
+                                        expressions.push(field_by_id(range, "min"));
+                                        expressions.push(field_by_id(range, "max"));
+                                        expressions.push(field_by_id(range, "factor"));
+                                        "new ranges.SkewedRange({}, {}, {})".to_string()
+                                    }
+                                    "SymmetricalSkewed" => {
+                                        expressions.push(field_by_id(range, "min"));
+                                        expressions.push(field_by_id(range, "max"));
+                                        expressions.push(field_by_id(range, "factor"));
+                                        expressions.push(field_by_id(range, "center"));
+                                        "new ranges.SymmetricalSkewedRange({}, {}, {}, {})".to_string()
+                                    }
+                                    "Reversed" => {
+                                        todo!()
+                                    }
+                                    r => panic!("Invalid range type: {}", r)
+                                }
+                            };
+
+                            range_to_ts(&range)
+                        },
+                        Expr::Call(_) => { todo!() },
+                        _ => panic!("Range is not a struct")
+                    };
+
+                    let mut options = String::new();
+
+                    if let Some(expr) = optional_field_by_id("unit") {
+                        expressions.push(expr);
+                        options.push_str(r#"unit: "{}", "#);
+                    }
+
+                    if let Some(expr) = optional_field_by_id("stepSize") {
+                        expressions.push(expr);
+                        options.push_str(r#"stepSize: {}, "#);
+                    }
+
+                    if let Some(Expr::Call(call)) = optional_field_by_id("value_to_string") {
+                        if call.func.to_token_stream().to_string().split("::").next().unwrap().trim() == "formatters" {
+                            expressions.push(call.args.first().unwrap().clone());
+                            options.push_str(&format!(r#"formatter: formatters.{}({{}}), "#,
+                                                      call.func.to_token_stream().to_string()
+                                                          .split("::").last().unwrap().trim()));
+                        }
+                    }
+
+                    //                                                     name   id     value range options
+                    initializer.push_str(&format!(r#"new params.FloatParam("{}", "{{}}", {{}}, {}, {{{{ {}}}}}), "#,
+                                                  param.ident.to_string().to_upper_camel_case(),
+                                                  range,
+                                                  options));
+                },
+                RPParamType::IntParam => {
+                    expressions.push(field_by_id("name"));
+                    expressions.push(field_by_id("value"));
+
+                    let range = match field_by_id("range") {
+                        Expr::Struct(range) => {
+                            let mut range_to_ts = |range: &ExprStruct| {
+                                let field_by_id = |range: &ExprStruct, id: &str| -> Expr {
+                                    range.fields.iter()
+                                        .find(|field| field.member.to_token_stream().to_string() == id)
+                                        .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
+                                        .expr.clone()
+                                };
+
+                                let path = range.path.segments.iter()
+                                    .map(|segment| segment.ident.to_string())
+                                    .collect::<Vec<String>>();
+
+                                let range_type = match &path[..] {
+                                    [.., r, t] => {
+                                        if r != "IntRange" { panic!("Invalid range type: {}", r); }
+                                        t
+                                    },
+                                    [t] => t,
+                                    _ => panic!("Invalid range type")
+                                };
+
+                                match range_type.as_str() {
+                                    "Linear" => {
+                                        expressions.push(field_by_id(range, "min"));
+                                        expressions.push(field_by_id(range, "max"));
+                                        "new ranges.LinearRange({}, {})".to_string()
+                                    }
+                                    "Reversed" => {
+                                        todo!()
+                                    }
+                                    r => panic!("Invalid range type: {}", r)
+                                }
+                            };
+
+                            range_to_ts(&range)
+                        },
+                        Expr::Call(_) => { todo!() },
+                        _ => panic!("Range is not a struct")
+                    };
+
+                    let mut options = String::new();
+
+                    if let Some(expr) = optional_field_by_id("unit") {
+                        expressions.push(expr);
+                        options.push_str(r#"unit: "{}", "#);
+                    }
+
+                    if let Some(Expr::Call(call)) = optional_field_by_id("value_to_string") {
+                        if call.func.to_token_stream().to_string().split("::").next().unwrap().trim() == "formatters" {
+                            expressions.push(call.args.first().unwrap().clone());
+                            options.push_str(&format!(r#"formatter: formatters.{}({{}}), "#,
+                                                      call.func.to_token_stream().to_string()
+                                                          .split("::").last().unwrap().trim()));
+                        }
+                    }
+
+                    //                                                    name  id     value range options
+                    initializer.push_str(&format!(r#"new params.IntParam("{}", "{{}}", {{}}, {}, {{{{ {}}}}}), "#,
+                                                  param.ident.to_string().to_upper_camel_case(),
+                                                  range,
+                                                  options));
+                },
+                RPParamType::BoolParam => {
+                    expressions.push(field_by_id("name"));
+                    expressions.push(field_by_id("value"));
+
+                    let mut options = String::new();
+
+                    if let Some(expr) = optional_field_by_id("unit") {
+                        expressions.push(expr);
+                        options.push_str(r#"unit: "{}", "#);
+                    }
+
+                    if let Some(Expr::Call(call)) = optional_field_by_id("value_to_string") {
+                        if call.func.to_token_stream().to_string().split("::").next().unwrap().trim() == "formatters" {
+                            expressions.push(call.args.first().unwrap().clone());
+                            options.push_str(&format!(r#"formatter: formatters.{}({{}}), "#,
+                                                      call.func.to_token_stream().to_string()
+                                                          .split("::").last().unwrap().trim()));
+                        }
+                    }
+
+                    initializer.push_str(&format!(r#"new params.BoolParam("{}", "{{}}", {{}}, {{{{ {}}}}}), "#,
+                                                  param.ident.to_string().to_upper_camel_case(),
+                                                  options));
+                }
+            };
+        });
+
+        // TODO: User-defined export path for bindings?
+        
+        quote!{
+            #[cfg(test)]
+            mod test {
+                use super::*;
+                use std::fs::File;
+                use std::env;
+                use std::path::Path;
+                use std::io::prelude::*;
+
+                #[test]
+                fn generate_provider() {
+                    let init = format!(#initializer, #(#expressions),*);
+                    let ts =
+format!(r#"import {{ createContext, FC, ReactNode, useContext, useEffect }} from 'react';
+import * as params from 'react-plug/Parameters';
+import * as ranges from 'react-plug/Ranges';
+import * as formatters from 'react-plug/Formatters';
+import {{ sendToPlugin, isParameterChange }} from 'react-plug/util';
+
+interface ContextType {{
+  parameters: Params
+}}
+
+const PluginContext = createContext<ContextType | undefined>(undefined);
+
+type Params = {{
+  {}
+}};
+
+const PluginProvider: FC<{{ children: ReactNode }}> = ({{ children }}) => {{
+  const parameters: Params = {{
+    {}
+  }};
+
+  useEffect(() => {{
+    sendToPlugin('Init');
+
+    // TODO: This kinda sucks
+    (window as any).onPluginMessage = (message: Object) => {{
+      console.log('Message (Plugin -> GUI)', message);
+      if(isParameterChange(message)) {{
+        const [id, value] = Object.entries(message.ParameterChange)[0];
+
+        const param = Object.values(parameters)
+          .find((p) => p.id == id);
+
+        if(param === undefined)
+          throw new Error('usePluginContext must be used within a provider');
+
+        if(param.type == 'FloatParam')
+          (param as params.FloatParam)._setDisplayedValue(value as unknown as number);
+        else if(param.type == 'IntParam')
+          (param as params.IntParam)._setDisplayedValue(value as unknown as number);
+        else if(param.type == 'BoolParam')
+          (param as params.BoolParam)._setDisplayedValue(value as unknown as boolean);
+      }}
+    }};
+  }}, []);
+
+  return (
+    <PluginContext.Provider value={{{{ parameters }}}}>
+      {{children}}
+    </PluginContext.Provider>
+  );
+}};
+
+export const usePluginContext = () => {{
+  const context = useContext(PluginContext);
+  if (!context) {{
+    throw new Error('usePluginContext must be used within a provider');
+  }}
+  return context;
+}};
+
+export default PluginProvider;
+"#, #declarations, init);
+
+
+                    let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("gui/src/bindings/PluginProvider.tsx");
+                    let mut file = File::create(path).unwrap();
+                    file.write_all(ts.as_bytes()).unwrap();
+                }
+            }
+        }
+    };
+
     {quote! {
         #param_enum
 
@@ -180,6 +479,8 @@ pub fn rp_params(
         #impl_block
 
         #impl_parameters_block
+
+        #test_block
     }}.into()
 }
 

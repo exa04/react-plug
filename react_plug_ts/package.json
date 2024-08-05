@@ -1,5 +1,5 @@
 {
-  "name": "react-plug-context",
+  "name": "react_plug",
   "module": "index.ts",
   "type": "module",
   "devDependencies": {
@@ -8,6 +8,9 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "build": "tsc"
   },
   "dependencies": {
     "react": "^18.3.1"

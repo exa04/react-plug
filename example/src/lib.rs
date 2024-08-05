@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crossbeam_channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
 use include_dir::{Dir, include_dir};
+use serde::de::Unexpected::Float;
 
 pub struct ExamplePlugin {
     params: Arc<ExampleParams>,

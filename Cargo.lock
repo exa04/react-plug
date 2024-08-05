@@ -2427,6 +2427,7 @@ version = "0.1.0"
 dependencies = [
  "crossbeam-channel",
  "heck 0.5.0",
+ "include_dir",
  "nih_plug",
  "proc-macro2",
  "quote",
