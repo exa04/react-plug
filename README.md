@@ -1,17 +1,11 @@
-<div align="center">
-<h1>
-<img src="https://github.com/user-attachments/assets/000ce122-5dc2-40b6-9a63-bf8942bc3b79">
-<div>React-Plug</div>
-</h1>
-<p>
-Build audio plug-ins with Rust and React.
-</p>
+# ![React-Plug](https://github.com/user-attachments/assets/99590d0e-68c7-4363-a21a-94e38cae60e1)
 
+<div align="center">
+  
 [![Test](https://github.com/223230/react_plug/actions/workflows/test.yml/badge.svg)](https://github.com/223230/react_plug/actions/workflows/test.yml)
 ![Lines of Code](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.codetabs.com%2Fv1%2Floc%2F%3Fgithub%3D223230%2Freact_plug%26branch%3Dmain&query=%24%5B%3F(%40.language%3D%3D%22Rust%22)%5D.linesOfCode&label=Lines%20of%20Code&labelColor=gray&color=blue)
 [![dependency status](https://deps.rs/repo/github/223230/react_plug/status.svg)](https://deps.rs/repo/github/223230/react_plug)
 [![0.1.0 milestone counter](https://img.shields.io/github/milestones/progress-percent/223230/react_plug/1)](https://github.com/223230/react_plug/milestone/1)
-
 </div>
 
 ---
