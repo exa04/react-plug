@@ -2,7 +2,7 @@ pub mod editor;
 
 pub mod prelude {
     pub use react_plug_derive::*;
-    pub use crate::editor::create_editor;
+    pub use crate::editor::ReactPlugEditor;
     pub use crate::RPPlugin;
 }
 
