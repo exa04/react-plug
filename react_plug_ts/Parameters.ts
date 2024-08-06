@@ -44,23 +44,14 @@ export class FloatParam implements Parameter<number> {
       formatter?: Formatter<number>,
     }
   ) {
-    this.id = id;
-    this.name = name;
-
-    this.defaultValue = defaultValue;
-
-    const [rawValue, setRawValue] = useState(defaultValue);
-    this.rawValue = rawValue;
-    this._setDisplayedValue = setRawValue;
-
-    this.unit = options?.unit;
-    this.stepSize = options?.stepSize;
+    this.id = id; this.name = name; this.defaultValue = defaultValue; this.range = range;
+    this.unit = options?.unit; this.stepSize = options?.stepSize;
     this.formatter = options?.formatter ?? (value => value.toFixed(2));
+
+    [this.rawValue, this._setDisplayedValue] = useState(defaultValue);
 
     const [value, setValue] = useState(this.formatter(defaultValue));
     this.value = value;
-
-    this.range = range;
 
     useEffect(() => {
       console.debug("Setting value to", this.rawValue);
@@ -70,7 +61,7 @@ export class FloatParam implements Parameter<number> {
     this.setValue = (value) => {
       if(value == this.rawValue) return;
       sendToPlugin({ "ParameterChange": { [id]: value } })
-      setRawValue(value);
+      this._setDisplayedValue(value);
     }
   }
 }

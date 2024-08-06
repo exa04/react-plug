@@ -6,10 +6,9 @@ rp_params! {
         gain: FloatParam {
             name: "Gain",
             value: util::db_to_gain(0.0),
-            range: FloatRange::Skewed {
-                min: util::db_to_gain(-30.0),
-                max: util::db_to_gain(30.0),
-                factor: FloatRange::gain_skew_factor(-30.0, 30.0),
+            range: FloatRange::Linear {
+                min: util::db_to_gain(-60.0),
+                max: util::db_to_gain(0.0),
             },
             smoother: SmoothingStyle::Logarithmic(50.0),
             unit: " dB",

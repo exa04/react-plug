@@ -1,4 +1,6 @@
 extern crate proc_macro;
+
+use std::path::Path;
 use heck::{ToLowerCamelCase, ToUpperCamelCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -8,7 +10,6 @@ use params::*;
 
 mod params;
 
-// TODO: Support attributes and macros
 // TODO: Skipping fields
 // TODO: EnumParam support
 #[proc_macro]
@@ -45,7 +46,7 @@ pub fn rp_params<'a>(
 
         quote!{
             #[derive(ts_rs::TS, serde::Serialize, serde::Deserialize)]
-            #[ts(export, export_to = "Param.ts")]
+            #[ts(export, export_to = "../gui/src/bindings/Param.ts")]
             pub enum #enum_ident {
                 #(#param_enum_fields),*
             }
@@ -59,9 +60,9 @@ pub fn rp_params<'a>(
             let id = ident.to_string();
 
             quote! {
-            #[id = #id]
-            pub #ident: #ty
-        }
+                #[id = #id]
+                pub #ident: #ty
+            }
         });
         
         quote! {
@@ -382,7 +383,7 @@ pub fn rp_params<'a>(
         });
 
         // TODO: User-defined export path for bindings?
-        
+
         quote!{
             #[cfg(test)]
             mod test {
@@ -396,14 +397,23 @@ pub fn rp_params<'a>(
                 fn generate_provider() {
                     let init = format!(#initializer, #(#expressions),*);
                     let ts =
-format!(r#"import {{ createContext, FC, ReactNode, useContext, useEffect }} from 'react';
+format!(r#"import {{createContext, FC, ReactNode, useContext, useEffect, useRef}} from 'react';
+
+import {{ EventEmitter }} from 'events';
+
 import * as params from 'react-plug/Parameters';
 import * as ranges from 'react-plug/Ranges';
 import * as formatters from 'react-plug/Formatters';
 import {{ sendToPlugin, isParameterChange }} from 'react-plug/util';
 
+import {{GuiMessage}} from "./GuiMessage";
+import {{PluginMessage}} from "./PluginMessage";
+
 interface ContextType {{
-  parameters: Params
+  parameters: Params;
+  sendToPlugin: (message: GuiMessage) => void;
+  addMessageListener: (action: (message: PluginMessage) => void) => void;
+  removeMessageListener: (action: (message: PluginMessage) => void) => void;
 }}
 
 const PluginContext = createContext<ContextType | undefined>(undefined);
@@ -413,6 +423,11 @@ type Params = {{
 }};
 
 const PluginProvider: FC<{{ children: ReactNode }}> = ({{ children }}) => {{
+  const eventEmitter = useRef(new EventEmitter());
+
+  const addMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.on('pluginMessage', action);
+  const removeMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.off('pluginMessage', action);
+
   const parameters: Params = {{
     {}
   }};
@@ -438,12 +453,19 @@ const PluginProvider: FC<{{ children: ReactNode }}> = ({{ children }}) => {{
           (param as params.IntParam)._setDisplayedValue(value as unknown as number);
         else if(param.type == 'BoolParam')
           (param as params.BoolParam)._setDisplayedValue(value as unknown as boolean);
+      }} else {{
+        eventEmitter.current.emit('pluginMessage', message as PluginMessage);
       }}
     }};
   }}, []);
 
   return (
-    <PluginContext.Provider value={{{{ parameters }}}}>
+    <PluginContext.Provider value={{{{
+      parameters,
+      sendToPlugin,
+      addMessageListener,
+      removeMessageListener
+    }}}}>
       {{children}}
     </PluginContext.Provider>
   );
@@ -507,7 +529,7 @@ pub fn plugin_message(args: proc_macro::TokenStream, input: proc_macro::TokenStr
             // Generate the enum with the new variants
             quote! {
                 #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS)]
-                #[ts(export, export_to = "PluginMessage.ts")]
+                #[ts(export, export_to = "../gui/src/bindings/PluginMessage.ts")]
                 pub enum #name {
                     #new_variants
                 }
@@ -549,7 +571,7 @@ pub fn gui_message(args: proc_macro::TokenStream, input: proc_macro::TokenStream
             // Generate the enum with the new variants
             quote! {
                 #[derive(Serialize, Deserialize, ts_rs::TS)]
-                #[ts(export, export_to = "GuiMessage.ts")]
+                #[ts(export, export_to = "../gui/src/bindings/GuiMessage.ts")]
                 pub enum #name {
                     #new_variants
                 }

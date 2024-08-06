@@ -1,10 +1,28 @@
-import {usePluginContext} from './bindings/PluginProvider';
 import './styles.css';
 
+import {usePluginContext} from './bindings/PluginProvider';
+import {PluginMessage} from "./bindings/PluginMessage";
+import {useEffect, useState} from "react";
+
 function App() {
-  const gain = usePluginContext().parameters.gain;
-  const boolTest = usePluginContext().parameters.boolTest;
-  const intTest = usePluginContext().parameters.intTest;
+  const ctx = usePluginContext();
+
+  const gain = ctx.parameters.gain;
+  const boolTest = ctx.parameters.boolTest;
+  const intTest = ctx.parameters.intTest;
+
+  const [pongCount, setPongCount] = useState(0);
+
+  useEffect(() => {
+    const handler = (message: PluginMessage) => {
+      if(message === "Pong")
+        setPongCount(prevCount => prevCount + 1);
+    };
+
+    ctx.addMessageListener(handler);
+
+    return () => ctx.removeMessageListener(handler);
+  }, [ctx]);
 
   return (
     <div className="container">
@@ -49,6 +67,11 @@ function App() {
           <div>{boolTest.name}: {boolTest.value}</div>
         </div>
         <a onClick={() => boolTest.toggle()}>Toggle</a>
+      </div>
+      <hr/>
+      <div className="message-group">
+        <button onClick={() => ctx.sendToPlugin("Ping")}>Send Ping</button>
+        <div>Pong counter: {pongCount}</div>
       </div>
     </div>
   )
