@@ -73,19 +73,18 @@ impl Plugin for ExamplePlugin {
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let sender = self.editor_channel.0.clone();
 
-        Some(Box::new(
-            ReactPlugEditor::new::<GuiMessage>(
-                self.params.clone(),
-                &EDITOR_DIR,
-                self.editor_channel.clone(),
-            )
-                .with_developer_mode(true)
-                .with_message_handler(move |message| {
-                    if let GuiMessage::Ping = message {
-                        sender.send(PluginMessage::Pong).unwrap();
-                    }
-                })
-        ))
+        ReactPlugEditor::new::<GuiMessage>(
+            self.params.clone(),
+            &EDITOR_DIR,
+            self.editor_channel.clone(),
+        )
+            .with_developer_mode(true)
+            .with_message_handler(move |message| {
+                if let GuiMessage::Ping = message {
+                    sender.send(PluginMessage::Pong).unwrap();
+                }
+            })
+            .into()
     }
 
     const NAME: &'static str = "Example Plugin";

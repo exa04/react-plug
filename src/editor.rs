@@ -229,3 +229,14 @@ where
         self.editor.param_values_changed()
     }
 }
+
+
+impl<P, PM> Into<Option<Box<dyn Editor + 'static>>> for ReactPlugEditor<P, PM>
+where
+    P: Parameters,
+    PM: PluginMsg<P::ParamType> + 'static,
+{
+    fn into(self) -> Option<Box<dyn Editor + 'static>> {
+        Some(Box::new(self))
+    }
+}
