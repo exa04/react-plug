@@ -1,6 +1,5 @@
 extern crate proc_macro;
 
-use std::path::Path;
 use heck::{ToLowerCamelCase, ToUpperCamelCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
@@ -64,7 +63,7 @@ pub fn rp_params<'a>(
                 pub #ident: #ty
             }
         });
-        
+
         quote! {
             #[derive(Params)]
             pub struct #struct_ident {

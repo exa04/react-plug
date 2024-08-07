@@ -21,7 +21,7 @@ where
     dir: &'static Dir<'static>,
 }
 
-impl<P, PM> ReactPlugEditor< P, PM>
+impl<P, PM> ReactPlugEditor<P, PM>
 where
     P: Parameters,
     PM: PluginMsg<P::ParamType> + 'static,

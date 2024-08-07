@@ -3,7 +3,6 @@ pub mod editor;
 pub mod prelude {
     pub use react_plug_derive::*;
     pub use crate::editor::ReactPlugEditor;
-    pub use crate::RPPlugin;
 }
 
 pub use react_plug_derive::*;
@@ -39,14 +38,3 @@ pub trait ParamType:
     serde::Deserialize<'static> +
     ts_rs::TS
 { }
-
-pub trait RPPlugin: nih_plug::plugin::Plugin {
-    type Parameters: Parameters;
-    type PluginMsg: PluginMsg<<Self::Parameters as Parameters>::ParamType>;
-    type GuiMsg: GuiMsg<<Self::Parameters as Parameters>::ParamType>;
-
-    fn editor_channel(&self) -> (
-        crossbeam_channel::Sender<Self::PluginMsg>,
-        crossbeam_channel::Receiver<Self::PluginMsg>
-    );
-}

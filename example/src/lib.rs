@@ -77,7 +77,7 @@ impl Plugin for ExamplePlugin {
             ReactPlugEditor::new::<GuiMessage>(
                 self.params.clone(),
                 &EDITOR_DIR,
-                self.editor_channel(),
+                self.editor_channel.clone(),
             )
                 .with_developer_mode(true)
                 .with_message_handler(move |message| {
@@ -92,7 +92,6 @@ impl Plugin for ExamplePlugin {
     const VENDOR: &'static str = "223230";
     const URL: &'static str = "https://github.com/223230";
     const EMAIL: &'static str = "223230@pm.me";
-
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
     const AUDIO_IO_LAYOUTS: &'static [AudioIOLayout] = &[
@@ -109,16 +108,6 @@ impl Plugin for ExamplePlugin {
     ];
 
     const SAMPLE_ACCURATE_AUTOMATION: bool = true;
-}
-
-impl RPPlugin for ExamplePlugin {
-    type Parameters = ExampleParams;
-    type PluginMsg = PluginMessage;
-    type GuiMsg = GuiMessage;
-
-    fn editor_channel(&self) -> (Sender<PluginMessage>, Receiver<PluginMessage>) {
-        self.editor_channel.clone()
-    }
 }
 
 impl Vst3Plugin for ExamplePlugin {
