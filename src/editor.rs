@@ -230,13 +230,12 @@ where
     }
 }
 
-
-impl<P, PM> Into<Option<Box<dyn Editor + 'static>>> for ReactPlugEditor<P, PM>
+impl<P, PM> From<ReactPlugEditor<P, PM>> for Option<Box<dyn Editor + 'static>>
 where
     P: Parameters,
     PM: PluginMsg<P::ParamType> + 'static,
 {
-    fn into(self) -> Option<Box<dyn Editor + 'static>> {
-        Some(Box::new(self))
+    fn from(editor: ReactPlugEditor<P, PM>) -> Self {
+        Some(Box::new(editor))
     }
 }
