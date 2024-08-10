@@ -9,4 +9,4 @@ edition = "2021"
 anyhow = "1.0.86"
 nih_plug_xtask = { git = "https://github.com/robbert-vdh/nih-plug" }
 which = "6.0.2"
-toml = "0.7.8"
+toml = "0.8.19"
