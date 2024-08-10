@@ -22,13 +22,7 @@ fn build_usage_string(command_name: &str) -> String {
 }
 
 pub fn main() -> Result<()> {
-    let mut args = std::env::args().skip(1);
-
-    let command = args.next();
-
-    if !command.is_some_and(|c| c == "bundle" || c == "bundle-universal") {
-        return nih_plug_xtask::main().context("Failed to run nih_plug xtask");
-    }
+    let mut args = std::env::args().skip(2);
 
     let package_manager = if which("bun").is_ok() {
         "bun"
