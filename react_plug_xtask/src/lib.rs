@@ -39,6 +39,8 @@ pub fn main() -> Result<()> {
 
         fs::create_dir_all(Path::new("gui/dist"))?;
 
+        println!("Generating bindings...");
+
         if !Command::new("cargo")
             .arg("test")
             .status()
@@ -51,10 +53,29 @@ pub fn main() -> Result<()> {
         std::env::set_current_dir("gui")
             .context("Could not change to GUI directory. Do you have a /gui directory?")?;
 
+        if !Path::new("node_modules").exists() {
+            println!("Installing GUI dependencies...");
+            if !Command::new(package_manager)
+                .arg("install")
+                .status()
+                .with_context(|| format!("Failed to run `{} install`", { package_manager }))?
+                .success()
+            {
+                return Err(anyhow!("Couldn't install GUI dependencies"));
+            }
+        }
+
+        println!("Building GUI...");
+
         if !Command::new(package_manager)
             .arg("run")
             .arg("build")
-            .status()?
+            .status()
+            .with_context(|| {
+                format!("Failed to run `build` script using `{}`", {
+                    package_manager
+                })
+            })?
             .success()
         {
             return Err(anyhow!("Couldn't build GUI"));
