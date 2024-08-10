@@ -21,7 +21,5 @@ jobs:
       run: bun i --cwd react_plug_ts
     - name: Build TS code
       run: bun run --cwd react_plug_ts build
-    - name: Install GUI deps for example plugin
-      run: bun i --cwd example/gui
     - name: Build example plug-in
       run: cargo xtask bundle example
