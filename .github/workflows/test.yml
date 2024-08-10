@@ -18,6 +18,6 @@ jobs:
       with:
           bun-version: latest
     - name: Install GUI deps for example plugin
-      run: bun --cwd example/gui i
+      run: bun i --cwd example/gui
     - name: Build example plug-in
       run: cargo xtask bundle example
