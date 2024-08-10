@@ -549,11 +549,11 @@ const PluginProvider: FC<{{ children: ReactNode }}> = ({{children}}) => {{
           throw new Error('usePluginContext must be used within a provider');
 
         if (param.type == 'FloatParam')
-          (param as ReactPlug.Parameters.FloatParam)._setDisplayedValue(value as unknown as number);
+          (param as unknown as ReactPlug.Parameters.FloatParam)._setDisplayedValue(value as unknown as number);
         else if (param.type == 'IntParam')
-          (param as ReactPlug.Parameters.IntParam)._setDisplayedValue(value as unknown as number);
+          (param as unknown as ReactPlug.Parameters.IntParam)._setDisplayedValue(value as unknown as number);
         else if (param.type == 'BoolParam')
-          (param as ReactPlug.Parameters.BoolParam)._setDisplayedValue(value as unknown as boolean);
+          (param as unknown as ReactPlug.Parameters.BoolParam)._setDisplayedValue(value as unknown as boolean);
       }} else {{
         eventEmitter.current.emit('pluginMessage', message as PluginMessage);
       }}
