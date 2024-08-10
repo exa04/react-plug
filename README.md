@@ -43,13 +43,13 @@ WebView to display web UIs.
 The most straight-forward way to get started with React-Plug is to use
 [cargo generate]
 
-<h2 align="center">
+<h3 align="center">
 
 ```sh
 cargo generate gh:exa04/react-plug-template
 ```
 
-</h2>
+</h3>
 
 To run this command, you need to have [cargo-generate] installed. Also, make sure
 that you have some node package manager installed, either npm, pnpm, yarn or bun
