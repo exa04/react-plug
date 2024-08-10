@@ -14,5 +14,10 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
+    - uses: oven-sh/setup-bun@v2
+      with:
+          bun-version: latest
+    - name: Install GUI deps for example plugin
+      run: bun --cwd example/gui i
     - name: Build example plug-in
       run: cargo xtask bundle example
