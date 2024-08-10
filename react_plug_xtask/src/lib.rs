@@ -8,21 +8,14 @@ pub use anyhow::Result;
 use toml::Table;
 use which::which;
 
-fn build_usage_string(command_name: &str) -> String {
-    format!(
-        "Usage:
-  {command_name} bundle <package> [--release]
-  {command_name} bundle -p <package1> -p <package2> ... [--release]
-
-  {command_name} bundle-universal <package> [--release]  (macOS only)
-  {command_name} bundle-universal -p <package1> -p <package2> ... [--release]  (macOS only)
-
-  All other 'cargo build' options are supported, including '--target' and '--profile'."
-    )
-}
-
 pub fn main() -> Result<()> {
-    let mut args = std::env::args().skip(2);
+    let mut args = std::env::args().skip(1);
+
+    let command = args.next();
+
+    if !command.is_some_and(|c| c == "bundle" || c == "bundle-universal") {
+        return nih_plug_xtask::main().context("Failed to run nih_plug xtask");
+    }
 
     let package_manager = if which("bun").is_ok() {
         "bun"
@@ -43,15 +36,6 @@ pub fn main() -> Result<()> {
     for package in packages.iter() {
         chdir_workspace_root(package)?;
 
-        if !Command::new("cargo")
-            .arg("test")
-            .status()
-            .context("Failed to run 'cargo test'")?
-            .success()
-        {
-            return Err(anyhow::anyhow!("Tests failed"));
-        }
-
         std::env::set_current_dir("gui")
             .context("Could not change to GUI directory. Do you have a /gui directory?")?;
 
@@ -62,6 +46,15 @@ pub fn main() -> Result<()> {
             .success()
         {
             return Err(anyhow!("Couldn't build GUI"));
+        }
+
+        if !Command::new("cargo")
+            .arg("test")
+            .status()
+            .context("Failed to run 'cargo test'")?
+            .success()
+        {
+            return Err(anyhow::anyhow!("Tests failed"));
         }
     }
 
