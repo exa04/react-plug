@@ -80,6 +80,17 @@ pub fn main() -> Result<()> {
         {
             return Err(anyhow!("Couldn't build GUI"));
         }
+
+        println!("Building GUI...");
+
+        if !Command::new("cargo")
+            .arg("clean")
+            .status()
+            .context("Failed to clean")?
+            .success()
+        {
+            return Err(anyhow!("Couldn't clean"));
+        }
     }
 
     nih_plug_xtask::main().context("Failed to run nih_plug xtask")
