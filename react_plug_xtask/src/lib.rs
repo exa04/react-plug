@@ -85,6 +85,8 @@ pub fn main() -> Result<()> {
 
         if !Command::new("cargo")
             .arg("clean")
+            .arg("-p")
+            .arg(package)
             .status()
             .context("Failed to clean")?
             .success()
