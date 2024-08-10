@@ -1,49 +1,55 @@
 extern crate proc_macro;
 
 use heck::{ToLowerCamelCase, ToUpperCamelCase};
+use params::*;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{Data, DataEnum, DeriveInput, Expr, ExprStruct, Meta, parse_macro_input, Token};
 use syn::punctuated::Punctuated;
-use params::*;
+use syn::{parse_macro_input, Data, DataEnum, DeriveInput, Expr, ExprStruct, Meta, Token};
 
 mod params;
 
 // TODO: Skipping fields
 // TODO: EnumParam support
 #[proc_macro]
-pub fn rp_params<'a>(
-    input: proc_macro::TokenStream
-) -> proc_macro::TokenStream {
+pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let params = syn::parse::<RPParams>(input).unwrap();
 
     let struct_ident = &params.ident;
 
     let enum_ident = Ident::new(
         format!("{}Type", struct_ident.to_string().to_upper_camel_case()).as_str(),
-        Span::call_site()
+        Span::call_site(),
     );
 
-    fn variant(ident: &Ident) -> Ident { Ident::new(
-        ident.to_string().to_upper_camel_case().as_str(),
-        Span::call_site()
-    ) }
+    fn variant(ident: &Ident) -> Ident {
+        Ident::new(
+            ident.to_string().to_upper_camel_case().as_str(),
+            Span::call_site(),
+        )
+    }
 
     let param_enum = {
         let param_enum_fields = params.params.iter().map(|param| {
             let ty = match &param.ty {
-                RPParamType::FloatParam => {quote!{f32}}
-                RPParamType::IntParam => {quote!{i32}}
-                RPParamType::BoolParam => {quote!{bool}}
+                RPParamType::FloatParam => {
+                    quote! {f32}
+                }
+                RPParamType::IntParam => {
+                    quote! {i32}
+                }
+                RPParamType::BoolParam => {
+                    quote! {bool}
+                }
             };
             let ident = Ident::new(
                 param.ident.to_string().to_upper_camel_case().as_str(),
-                Span::call_site()
+                Span::call_site(),
             );
-            quote!{#ident(#ty)}
+            quote! {#ident(#ty)}
         });
 
-        quote!{
+        quote! {
             #[derive(ts_rs::TS, serde::Serialize, serde::Deserialize)]
             #[ts(export, export_to = "../gui/src/bindings/Param.ts")]
             pub enum #enum_ident {
@@ -171,33 +177,49 @@ pub fn rp_params<'a>(
     };
 
     let test_block = {
-        let declarations = params.params.iter().map(|param| {
-            let ident = &param.ident;
-            let ty = &param.ty;
-            let id = ident.to_string().to_lower_camel_case();
+        let declarations = params
+            .params
+            .iter()
+            .map(|param| {
+                let ident = &param.ident;
+                let ty = &param.ty;
+                let id = ident.to_string().to_lower_camel_case();
 
-            match ty {
-                RPParamType::FloatParam => format!("{}: params.FloatParam", id),
-                RPParamType::IntParam => format!("{}: params.IntParam", id),
-                RPParamType::BoolParam => format!("{}: params.BoolParam", id)
-            }
-        }).collect::<Vec<String>>().join(",\n  ");
+                match ty {
+                    RPParamType::FloatParam => format!("{}: ReactPlug.Parameters.FloatParam", id),
+                    RPParamType::IntParam => format!("{}: ReactPlug.Parameters.IntParam", id),
+                    RPParamType::BoolParam => format!("{}: ReactPlug.Parameters.BoolParam", id),
+                }
+            })
+            .collect::<Vec<String>>()
+            .join(",\n  ");
 
         let mut initializer: String = String::new();
         let mut expressions: Vec<Expr> = vec![];
 
         params.params.iter().for_each(|param| {
-            initializer.push_str(&format!("{}: ", (&param.ident).to_string().to_lower_camel_case()));
+            initializer.push_str(&format!(
+                "{}: ",
+                (&param.ident).to_string().to_lower_camel_case()
+            ));
 
-            let field_by_id = |id: &str| param.fields.iter()
-                .find(|field| field.ident == id)
-                .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
-                .expr
-                .clone();
+            let field_by_id = |id: &str| {
+                param
+                    .fields
+                    .iter()
+                    .find(|field| field.ident == id)
+                    .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
+                    .expr
+                    .clone()
+            };
 
-            let optional_field_by_id = |id: &str| param.fields.iter()
-                .find(|field| field.ident == id)
-                .map(|field| field.expr.clone());
+            let optional_field_by_id = |id: &str| {
+                param
+                    .fields
+                    .iter()
+                    .find(|field| field.ident == id)
+                    .map(|field| field.expr.clone())
+            };
 
             match &param.ty {
                 RPParamType::FloatParam => {
@@ -208,55 +230,70 @@ pub fn rp_params<'a>(
                         Expr::Struct(range) => {
                             let mut range_to_ts = |range: &ExprStruct| {
                                 let field_by_id = |range: &ExprStruct, id: &str| -> Expr {
-                                    range.fields.iter()
-                                        .find(|field| field.member.to_token_stream().to_string() == id)
-                                        .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
-                                        .expr.clone()
+                                    range
+                                        .fields
+                                        .iter()
+                                        .find(|field| {
+                                            field.member.to_token_stream().to_string() == id
+                                        })
+                                        .unwrap_or_else(|| {
+                                            panic!("No value for param field \"{}\" provided!", id)
+                                        })
+                                        .expr
+                                        .clone()
                                 };
 
-                                let path = range.path.segments.iter()
+                                let path = range
+                                    .path
+                                    .segments
+                                    .iter()
                                     .map(|segment| segment.ident.to_string())
                                     .collect::<Vec<String>>();
 
                                 let range_type = match &path[..] {
                                     [.., r, t] => {
-                                        if r != "FloatRange" { panic!("Invalid range type: {}", r); }
+                                        if r != "FloatRange" {
+                                            panic!("Invalid range type: {}", r);
+                                        }
                                         t
-                                    },
+                                    }
                                     [t] => t,
-                                    _ => panic!("Invalid range type")
+                                    _ => panic!("Invalid range type"),
                                 };
 
                                 match range_type.as_str() {
                                     "Linear" => {
                                         expressions.push(field_by_id(range, "min"));
                                         expressions.push(field_by_id(range, "max"));
-                                        "new ranges.LinearRange({}, {})".to_string()
+                                        "new ReactPlug.Ranges.LinearRange({}, {})".to_string()
                                     }
                                     "Skewed" => {
                                         expressions.push(field_by_id(range, "min"));
                                         expressions.push(field_by_id(range, "max"));
                                         expressions.push(field_by_id(range, "factor"));
-                                        "new ranges.SkewedRange({}, {}, {})".to_string()
+                                        "new ReactPlug.Ranges.SkewedRange({}, {}, {})".to_string()
                                     }
                                     "SymmetricalSkewed" => {
                                         expressions.push(field_by_id(range, "min"));
                                         expressions.push(field_by_id(range, "max"));
                                         expressions.push(field_by_id(range, "factor"));
                                         expressions.push(field_by_id(range, "center"));
-                                        "new ranges.SymmetricalSkewedRange({}, {}, {}, {})".to_string()
+                                        "new ReactPlug.Ranges.SymmetricalSkewedRange({}, {}, {}, {})"
+                                            .to_string()
                                     }
                                     "Reversed" => {
                                         todo!()
                                     }
-                                    r => panic!("Invalid range type: {}", r)
+                                    r => panic!("Invalid range type: {}", r),
                                 }
                             };
 
                             range_to_ts(&range)
-                        },
-                        Expr::Call(_) => { todo!() },
-                        _ => panic!("Range is not a struct")
+                        }
+                        Expr::Call(_) => {
+                            todo!()
+                        }
+                        _ => panic!("Range is not a struct"),
                     };
 
                     let mut options = String::new();
@@ -272,20 +309,38 @@ pub fn rp_params<'a>(
                     }
 
                     if let Some(Expr::Call(call)) = optional_field_by_id("value_to_string") {
-                        if call.func.to_token_stream().to_string().split("::").next().unwrap().trim() == "formatters" {
+                        if call
+                            .func
+                            .to_token_stream()
+                            .to_string()
+                            .split("::")
+                            .next()
+                            .unwrap()
+                            .trim()
+                            == "formatters"
+                        {
                             expressions.push(call.args.first().unwrap().clone());
-                            options.push_str(&format!(r#"formatter: formatters.{}({{}}), "#,
-                                                      call.func.to_token_stream().to_string()
-                                                          .split("::").last().unwrap().trim()));
+                            options.push_str(&format!(
+                                r#"formatter: ReactPlug.Formatters.{}({{}}), "#,
+                                call.func
+                                    .to_token_stream()
+                                    .to_string()
+                                    .split("::")
+                                    .last()
+                                    .unwrap()
+                                    .trim()
+                            ));
                         }
                     }
 
                     //                                                     name   id     value range options
-                    initializer.push_str(&format!(r#"new params.FloatParam("{}", "{{}}", {{}}, {}, {{{{ {}}}}}), "#,
-                                                  param.ident.to_string().to_upper_camel_case(),
-                                                  range,
-                                                  options));
-                },
+                    initializer.push_str(&format!(
+                        r#"new ReactPlug.Parameters.FloatParam("{}", "{{}}", {{}}, {}, {{{{ {}}}}}), "#,
+                        param.ident.to_string().to_upper_camel_case(),
+                        range,
+                        options
+                    ));
+                }
                 RPParamType::IntParam => {
                     expressions.push(field_by_id("name"));
                     expressions.push(field_by_id("value"));
@@ -294,42 +349,56 @@ pub fn rp_params<'a>(
                         Expr::Struct(range) => {
                             let mut range_to_ts = |range: &ExprStruct| {
                                 let field_by_id = |range: &ExprStruct, id: &str| -> Expr {
-                                    range.fields.iter()
-                                        .find(|field| field.member.to_token_stream().to_string() == id)
-                                        .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
-                                        .expr.clone()
+                                    range
+                                        .fields
+                                        .iter()
+                                        .find(|field| {
+                                            field.member.to_token_stream().to_string() == id
+                                        })
+                                        .unwrap_or_else(|| {
+                                            panic!("No value for param field \"{}\" provided!", id)
+                                        })
+                                        .expr
+                                        .clone()
                                 };
 
-                                let path = range.path.segments.iter()
+                                let path = range
+                                    .path
+                                    .segments
+                                    .iter()
                                     .map(|segment| segment.ident.to_string())
                                     .collect::<Vec<String>>();
 
                                 let range_type = match &path[..] {
                                     [.., r, t] => {
-                                        if r != "IntRange" { panic!("Invalid range type: {}", r); }
+                                        if r != "IntRange" {
+                                            panic!("Invalid range type: {}", r);
+                                        }
                                         t
-                                    },
+                                    }
                                     [t] => t,
-                                    _ => panic!("Invalid range type")
+                                    _ => panic!("Invalid range type"),
                                 };
 
                                 match range_type.as_str() {
                                     "Linear" => {
                                         expressions.push(field_by_id(range, "min"));
                                         expressions.push(field_by_id(range, "max"));
-                                        "new ranges.LinearRange({}, {})".to_string()
+                                        "new ReactPlug.Ranges.LinearRange({}, {})".to_string()
                                     }
                                     "Reversed" => {
                                         todo!()
                                     }
-                                    r => panic!("Invalid range type: {}", r)
+                                    r => panic!("Invalid range type: {}", r),
                                 }
                             };
 
                             range_to_ts(&range)
-                        },
-                        Expr::Call(_) => { todo!() },
-                        _ => panic!("Range is not a struct")
+                        }
+                        Expr::Call(_) => {
+                            todo!()
+                        }
+                        _ => panic!("Range is not a struct"),
                     };
 
                     let mut options = String::new();
@@ -340,20 +409,38 @@ pub fn rp_params<'a>(
                     }
 
                     if let Some(Expr::Call(call)) = optional_field_by_id("value_to_string") {
-                        if call.func.to_token_stream().to_string().split("::").next().unwrap().trim() == "formatters" {
+                        if call
+                            .func
+                            .to_token_stream()
+                            .to_string()
+                            .split("::")
+                            .next()
+                            .unwrap()
+                            .trim()
+                            == "formatters"
+                        {
                             expressions.push(call.args.first().unwrap().clone());
-                            options.push_str(&format!(r#"formatter: formatters.{}({{}}), "#,
-                                                      call.func.to_token_stream().to_string()
-                                                          .split("::").last().unwrap().trim()));
+                            options.push_str(&format!(
+                                r#"formatter: formatters.{}({{}}), "#,
+                                call.func
+                                    .to_token_stream()
+                                    .to_string()
+                                    .split("::")
+                                    .last()
+                                    .unwrap()
+                                    .trim()
+                            ));
                         }
                     }
 
                     //                                                    name  id     value range options
-                    initializer.push_str(&format!(r#"new params.IntParam("{}", "{{}}", {{}}, {}, {{{{ {}}}}}), "#,
-                                                  param.ident.to_string().to_upper_camel_case(),
-                                                  range,
-                                                  options));
-                },
+                    initializer.push_str(&format!(
+                        r#"new ReactPlug.Parameters.IntParam("{}", "{{}}", {{}}, {}, {{{{ {}}}}}), "#,
+                        param.ident.to_string().to_upper_camel_case(),
+                        range,
+                        options
+                    ));
+                }
                 RPParamType::BoolParam => {
                     expressions.push(field_by_id("name"));
                     expressions.push(field_by_id("value"));
@@ -366,44 +453,59 @@ pub fn rp_params<'a>(
                     }
 
                     if let Some(Expr::Call(call)) = optional_field_by_id("value_to_string") {
-                        if call.func.to_token_stream().to_string().split("::").next().unwrap().trim() == "formatters" {
+                        if call
+                            .func
+                            .to_token_stream()
+                            .to_string()
+                            .split("::")
+                            .next()
+                            .unwrap()
+                            .trim()
+                            == "formatters"
+                        {
                             expressions.push(call.args.first().unwrap().clone());
-                            options.push_str(&format!(r#"formatter: formatters.{}({{}}), "#,
-                                                      call.func.to_token_stream().to_string()
-                                                          .split("::").last().unwrap().trim()));
+                            options.push_str(&format!(
+                                r#"formatter: ReactPlug.Formatters.{}({{}}), "#,
+                                call.func
+                                    .to_token_stream()
+                                    .to_string()
+                                    .split("::")
+                                    .last()
+                                    .unwrap()
+                                    .trim()
+                            ));
                         }
                     }
 
-                    initializer.push_str(&format!(r#"new params.BoolParam("{}", "{{}}", {{}}, {{{{ {}}}}}), "#,
-                                                  param.ident.to_string().to_upper_camel_case(),
-                                                  options));
+                    initializer.push_str(&format!(
+                        r#"new ReactPlug.Parameters.BoolParam("{}", "{{}}", {{}}, {{{{ {}}}}}), "#,
+                        param.ident.to_string().to_upper_camel_case(),
+                        options
+                    ));
                 }
             };
         });
 
         // TODO: User-defined export path for bindings?
 
-        quote!{
-            #[cfg(test)]
-            mod test {
-                use super::*;
-                use std::fs::File;
-                use std::env;
-                use std::path::Path;
-                use std::io::prelude::*;
+        quote! {
+                    #[cfg(test)]
+                    mod test {
+                        use super::*;
+                        use std::fs::File;
+                        use std::env;
+                        use std::path::Path;
+                        use std::io::prelude::*;
 
-                #[test]
-                fn generate_provider() {
-                    let init = format!(#initializer, #(#expressions),*);
-                    let ts =
-format!(r#"import {{createContext, FC, ReactNode, useContext, useEffect, useRef}} from 'react';
+                        #[test]
+                        fn generate_provider() {
+                            let init = format!(#initializer, #(#expressions),*);
+                            let ts =
+        format!(r#"import {{createContext, FC, ReactNode, useContext, useEffect, useRef}} from 'react';
 
-import {{ EventEmitter }} from 'events';
+import {{EventEmitter}} from 'events';
 
-import * as params from 'react-plug/Parameters';
-import * as ranges from 'react-plug/Ranges';
-import * as formatters from 'react-plug/Formatters';
-import {{ sendToPlugin, isParameterChange }} from 'react-plug/util';
+import * as ReactPlug from 'react-plug';
 
 import {{GuiMessage}} from "./GuiMessage";
 import {{PluginMessage}} from "./PluginMessage";
@@ -421,7 +523,7 @@ type Params = {{
   {}
 }};
 
-const PluginProvider: FC<{{ children: ReactNode }}> = ({{ children }}) => {{
+const PluginProvider: FC<{{ children: ReactNode }}> = ({{children}}) => {{
   const eventEmitter = useRef(new EventEmitter());
 
   const addMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.on('pluginMessage', action);
@@ -432,26 +534,26 @@ const PluginProvider: FC<{{ children: ReactNode }}> = ({{ children }}) => {{
   }};
 
   useEffect(() => {{
-    sendToPlugin('Init');
+    ReactPlug.util.sendToPlugin('Init');
 
     // TODO: This kinda sucks
     (window as any).onPluginMessage = (message: Object) => {{
       console.log('Message (Plugin -> GUI)', message);
-      if(isParameterChange(message)) {{
+      if (ReactPlug.util.isParameterChange(message)) {{
         const [id, value] = Object.entries(message.ParameterChange)[0];
 
         const param = Object.values(parameters)
           .find((p) => p.id == id);
 
-        if(param === undefined)
+        if (param === undefined)
           throw new Error('usePluginContext must be used within a provider');
 
-        if(param.type == 'FloatParam')
-          (param as params.FloatParam)._setDisplayedValue(value as unknown as number);
-        else if(param.type == 'IntParam')
-          (param as params.IntParam)._setDisplayedValue(value as unknown as number);
-        else if(param.type == 'BoolParam')
-          (param as params.BoolParam)._setDisplayedValue(value as unknown as boolean);
+        if (param.type == 'FloatParam')
+          (param as ReactPlug.Parameters.FloatParam)._setDisplayedValue(value as unknown as number);
+        else if (param.type == 'IntParam')
+          (param as ReactPlug.Parameters.IntParam)._setDisplayedValue(value as unknown as number);
+        else if (param.type == 'BoolParam')
+          (param as ReactPlug.Parameters.BoolParam)._setDisplayedValue(value as unknown as boolean);
       }} else {{
         eventEmitter.current.emit('pluginMessage', message as PluginMessage);
       }}
@@ -461,7 +563,7 @@ const PluginProvider: FC<{{ children: ReactNode }}> = ({{ children }}) => {{
   return (
     <PluginContext.Provider value={{{{
       parameters,
-      sendToPlugin,
+      sendToPlugin: ReactPlug.util.sendToPlugin,
       addMessageListener,
       removeMessageListener
     }}}}>
@@ -482,35 +584,42 @@ export default PluginProvider;
 "#, #declarations, init);
 
 
-                    let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("gui/src/bindings/PluginProvider.tsx");
-                    let mut file = File::create(path).unwrap();
-                    file.write_all(ts.as_bytes()).unwrap();
+                            let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("gui/src/bindings/PluginProvider.tsx");
+                            let mut file = File::create(path).unwrap();
+                            file.write_all(ts.as_bytes()).unwrap();
+                        }
+                    }
                 }
-            }
-        }
     };
 
-    {quote! {
-        #param_enum
+    {
+        quote! {
+            #param_enum
 
-        impl react_plug::ParamType for #enum_ident { }
+            impl react_plug::ParamType for #enum_ident { }
 
-        #param_struct
+            #param_struct
 
-        #impl_block
+            #impl_block
 
-        #impl_parameters_block
+            #impl_parameters_block
 
-        #test_block
-    }}.into()
+            #test_block
+        }
+    }
+    .into()
 }
 
 #[proc_macro_attribute]
-pub fn plugin_message(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn plugin_message(
+    args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args with Punctuated::<Meta, syn::Token![,]>::parse_terminated);
     let input = parse_macro_input!(input as DeriveInput);
 
-    let param = &args.iter()
+    let param = &args
+        .iter()
         .find(|arg| arg.path().is_ident("params"))
         .expect("Missing params argument")
         .require_name_value()
@@ -539,7 +648,7 @@ pub fn plugin_message(args: proc_macro::TokenStream, input: proc_macro::TokenStr
                     }
                 }
             }
-        },
+        }
         _ => panic!("Not an enum"),
     };
 
@@ -547,11 +656,15 @@ pub fn plugin_message(args: proc_macro::TokenStream, input: proc_macro::TokenStr
 }
 
 #[proc_macro_attribute]
-pub fn gui_message(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn gui_message(
+    args: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     let args = parse_macro_input!(args with Punctuated::<Meta, syn::Token![,]>::parse_terminated);
     let input = parse_macro_input!(input as DeriveInput);
 
-    let param = &args.iter()
+    let param = &args
+        .iter()
         .find(|arg| arg.path().is_ident("params"))
         .expect("Missing params argument")
         .require_name_value()
@@ -586,7 +699,7 @@ pub fn gui_message(args: proc_macro::TokenStream, input: proc_macro::TokenStream
                     }
                 }
             }
-        },
+        }
         _ => panic!("Not an enum"),
     };
 

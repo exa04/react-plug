@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Context};
+use std::fs;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub use anyhow::Result;
@@ -36,6 +37,17 @@ pub fn main() -> Result<()> {
     for package in packages.iter() {
         chdir_workspace_root(package)?;
 
+        fs::create_dir_all(Path::new("gui/dist"))?;
+
+        if !Command::new("cargo")
+            .arg("test")
+            .status()
+            .context("Failed to run 'cargo test'")?
+            .success()
+        {
+            return Err(anyhow::anyhow!("Tests failed"));
+        }
+
         std::env::set_current_dir("gui")
             .context("Could not change to GUI directory. Do you have a /gui directory?")?;
 
@@ -46,15 +58,6 @@ pub fn main() -> Result<()> {
             .success()
         {
             return Err(anyhow!("Couldn't build GUI"));
-        }
-
-        if !Command::new("cargo")
-            .arg("test")
-            .status()
-            .context("Failed to run 'cargo test'")?
-            .success()
-        {
-            return Err(anyhow::anyhow!("Tests failed"));
         }
     }
 

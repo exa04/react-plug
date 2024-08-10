@@ -1,14 +1,13 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use include_dir::Dir;
+use crate::{GuiMsg, Parameters, PluginMsg};
+use include_dir::{include_dir, Dir};
 use nih_plug::editor::{Editor, ParentWindowHandle};
 use nih_plug::nih_log;
 use nih_plug::prelude::GuiContext;
-use nih_plug_webview::{EventStatus, HTMLSource, KeyboardEvent, MouseEvent, WebViewEditor};
 use nih_plug_webview::http::{Request, Response};
-
-use crate::{Parameters, PluginMsg, GuiMsg};
+use nih_plug_webview::{EventStatus, HTMLSource, KeyboardEvent, MouseEvent, WebViewEditor};
 
 pub struct ReactPlugEditor<P, PM>
 where
@@ -17,7 +16,10 @@ where
 {
     editor: WebViewEditor,
     params: Arc<P>,
-    editor_channel: Arc<(crossbeam_channel::Sender<PM>, crossbeam_channel::Receiver<PM>)>,
+    editor_channel: Arc<(
+        crossbeam_channel::Sender<PM>,
+        crossbeam_channel::Receiver<PM>,
+    )>,
     dir: &'static Dir<'static>,
 }
 
@@ -29,7 +31,10 @@ where
     pub fn new<GM: GuiMsg<P::ParamType> + 'static>(
         params: Arc<P>,
         dir: &'static Dir,
-        editor_channel: (crossbeam_channel::Sender<PM>, crossbeam_channel::Receiver<PM>),
+        editor_channel: (
+            crossbeam_channel::Sender<PM>,
+            crossbeam_channel::Receiver<PM>,
+        ),
     ) -> Self {
         let plugin_sender = editor_channel.0.clone();
         let plugin_receiver = editor_channel.1.clone();
@@ -86,7 +91,9 @@ where
                         message.is_param_update_and(|param| {
                             editor_params.set_param(&setter, param);
                         });
-                    } else { nih_log!("Received invalid message from GUI!") }
+                    } else {
+                        nih_log!("Received invalid message from GUI!")
+                    }
                 }
                 while !plugin_receiver.is_empty() {
                     let message = serde_json::to_value(plugin_receiver.recv().unwrap())
@@ -104,7 +111,10 @@ where
         }
     }
 
-    pub fn with_message_handler<GM: GuiMsg<P::ParamType> + 'static>(mut self, handler: impl Fn(GM) + 'static + Send + Sync) -> Self {
+    pub fn with_message_handler<GM: GuiMsg<P::ParamType> + 'static>(
+        mut self,
+        handler: impl Fn(GM) + 'static + Send + Sync,
+    ) -> Self {
         let params = self.params.clone();
         let plugin_sender = self.editor_channel.0.clone();
         let plugin_receiver = self.editor_channel.1.clone();
@@ -120,7 +130,9 @@ where
                         params.set_param(&setter, param);
                     });
                     handler(message);
-                } else { nih_log!("Received invalid message from GUI!") }
+                } else {
+                    nih_log!("Received invalid message from GUI!")
+                }
             }
             while !plugin_receiver.is_empty() {
                 let message = serde_json::to_value(plugin_receiver.clone().recv().unwrap())
@@ -167,35 +179,37 @@ where
 
         let dir = self.dir.clone();
 
-        self.editor = self.editor.with_custom_protocol(protocol.parse().unwrap(), move |req| {
-            let path = req.uri().path();
+        self.editor = self
+            .editor
+            .with_custom_protocol(protocol.parse().unwrap(), move |req| {
+                let path = req.uri().path();
 
-            let path = if path == "/" {
-                "index.html"
-            } else {
-                &path[1..]
-            };
+                let path = if path == "/" {
+                    "index.html"
+                } else {
+                    &path[1..]
+                };
 
-            let mime_type = mime_guess::from_path(path)
-                .first_or_text_plain()
-                .to_string();
+                let mime_type = mime_guess::from_path(path)
+                    .first_or_text_plain()
+                    .to_string();
 
-            if let Some(file) = dir.get_file(path) {
-                let content = file.contents();
+                if let Some(file) = dir.get_file(path) {
+                    let content = file.contents();
 
-                Response::builder()
-                    .header("content-type", mime_type)
-                    .header("Access-Control-Allow-Origin", "*")
-                    .body(content.into())
-                    .map_err(Into::into)
-            } else {
-                Response::builder()
-                    .header("content-type", "text/plain")
-                    .header("Access-Control-Allow-Origin", "*")
-                    .body("404 Not Found".as_bytes().into())
-                    .map_err(Into::into)
-            }
-        });
+                    Response::builder()
+                        .header("content-type", mime_type)
+                        .header("Access-Control-Allow-Origin", "*")
+                        .body(content.into())
+                        .map_err(Into::into)
+                } else {
+                    Response::builder()
+                        .header("content-type", "text/plain")
+                        .header("Access-Control-Allow-Origin", "*")
+                        .body("404 Not Found".as_bytes().into())
+                        .map_err(Into::into)
+                }
+            });
         self
     }
 }
@@ -205,7 +219,11 @@ where
     P: Parameters,
     PM: PluginMsg<P::ParamType> + 'static,
 {
-    fn spawn(&self, parent: ParentWindowHandle, context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
+    fn spawn(
+        &self,
+        parent: ParentWindowHandle,
+        context: Arc<dyn GuiContext>,
+    ) -> Box<dyn Any + Send> {
         self.editor.spawn(parent, context)
     }
 

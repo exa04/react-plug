@@ -1,18 +1,19 @@
 {
   "name": "react_plug",
-  "module": "index.ts",
-  "type": "module",
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/react": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
+  "version": "0.1.0",
+  "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "build": "rollup -c",
+    "dev": "concurrently \"tsc --watch\" \"nodemon ./dist/index.js\""
   },
   "dependencies": {
-    "react": "^18.3.1"
+    "@types/bun": "latest",
+    "@types/react": "latest",
+    "concurrently": "^8.2.0",
+    "nodemon": "^3.0.1",
+    "react": "^18.3.1",
+    "rollup": "^3.28.0",
+    "rollup-plugin-typescript2": "^0.36.0",
+    "typescript": "^5.1.6"
   }
 }

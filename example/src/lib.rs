@@ -5,11 +5,10 @@ use crate::params::*;
 use nih_plug::prelude::*;
 use react_plug::prelude::*;
 
-use std::sync::Arc;
 use crossbeam_channel::{Receiver, Sender};
+use include_dir::{include_dir, Dir};
 use serde::{Deserialize, Serialize};
-use include_dir::{Dir, include_dir};
-use serde::de::Unexpected::Float;
+use std::sync::Arc;
 
 pub struct ExamplePlugin {
     params: Arc<ExampleParams>,
@@ -43,7 +42,9 @@ impl Plugin for ExamplePlugin {
     type SysExMessage = ();
     type BackgroundTask = ();
 
-    fn params(&self) -> Arc<dyn Params> { self.params.clone() }
+    fn params(&self) -> Arc<dyn Params> {
+        self.params.clone()
+    }
 
     fn initialize(
         &mut self,
@@ -78,13 +79,13 @@ impl Plugin for ExamplePlugin {
             &EDITOR_DIR,
             self.editor_channel.clone(),
         )
-            .with_developer_mode(true)
-            .with_message_handler(move |message| {
-                if let GuiMessage::Ping = message {
-                    sender.send(PluginMessage::Pong).unwrap();
-                }
-            })
-            .into()
+        .with_developer_mode(true)
+        .with_message_handler(move |message| {
+            if let GuiMessage::Ping = message {
+                sender.send(PluginMessage::Pong).unwrap();
+            }
+        })
+        .into()
     }
 
     const NAME: &'static str = "Example Plugin";

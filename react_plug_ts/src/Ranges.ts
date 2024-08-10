@@ -7,7 +7,8 @@ export interface Range {
 }
 
 export class LinearRange implements Range {
-  min: number; max: number;
+  min: number;
+  max: number;
   getMin = () => this.min;
   getMax = () => this.max;
 
@@ -22,13 +23,15 @@ export class LinearRange implements Range {
 }
 
 export class SkewedRange implements Range {
-  min: number; max: number; factor: number;
+  min: number;
+  max: number;
+  factor: number;
   getMin = () => this.min;
   getMax = () => this.max;
 
   clamp = (n: number) => clamp(n, this.min, this.max);
   normalize = (n: number) => Math.pow((this.clamp(n) - this.min) / (this.max - this.min), this.factor);
-  unnormalize = (n: number) => Math.pow(n, 1/this.factor) * (this.max - this.min) + this.min;
+  unnormalize = (n: number) => Math.pow(n, 1 / this.factor) * (this.max - this.min) + this.min;
 
   constructor(min: number, max: number, factor: number) {
     this.min = min;
@@ -38,7 +41,10 @@ export class SkewedRange implements Range {
 }
 
 export class SymmetricalSkewedRange implements Range {
-  min: number; max: number; factor: number; center: number;
+  min: number;
+  max: number;
+  factor: number;
+  center: number;
   getMin = () => this.min;
   getMax = () => this.max;
 
@@ -66,7 +72,7 @@ export class SymmetricalSkewedRange implements Range {
     } else {
       const inverted_scaled_proportion = (0.5 - n) * 2.0;
       skewed_proportion = (1.0 - Math.pow(inverted_scaled_proportion, 1 / this.factor)) * center_proportion
-    };
+    }
 
     return skewed_proportion * (this.max - this.min) + this.min
   };
@@ -94,7 +100,7 @@ export class ReversedRange implements Range {
 }
 
 const clamp = (n: number, min: number, max: number): number => {
-  if(n < min) return min;
-  if(n > max) return max;
+  if (n < min) return min;
+  if (n > max) return max;
   return n;
 }
