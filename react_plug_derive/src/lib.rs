@@ -505,7 +505,7 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
 import {{EventEmitter}} from 'events';
 
-import * as ReactPlug from 'react-plug';
+import * as ReactPlug from '@exa04/react-plug';
 
 import {{GuiMessage}} from "./GuiMessage";
 import {{PluginMessage}} from "./PluginMessage";
