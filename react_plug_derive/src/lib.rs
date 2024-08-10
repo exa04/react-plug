@@ -632,7 +632,7 @@ pub fn plugin_message(
             let mut new_variants = variants.clone();
 
             // Define new variants
-            new_variants.push(syn::parse_quote! { ParameterChange(ExampleParamsType) });
+            new_variants.push(syn::parse_quote! { ParameterChange(<#param as react_plug::Parameters>::ParamType) });
 
             // Generate the enum with the new variants
             quote! {
