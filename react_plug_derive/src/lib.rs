@@ -682,7 +682,7 @@ pub fn gui_message(
 
             // Generate the enum with the new variants
             quote! {
-                #[derive(Serialize, Deserialize, ts_rs::TS)]
+                #[derive(serde::Serialize, serde::Deserialize, ts_rs::TS)]
                 #[ts(export, export_to = "../gui/src/bindings/GuiMessage.ts")]
                 pub enum #name {
                     #new_variants

@@ -75,6 +75,7 @@ pub fn chdir_workspace_root(project_name: &String) -> Result<()> {
 
     let root = project_dir
         .ancestors()
+        .chain(std::iter::once(project_dir.as_path()))
         .map(|dir| {
             let cargo_file = dir.join("Cargo.toml");
             if !cargo_file.exists() {
@@ -89,6 +90,10 @@ pub fn chdir_workspace_root(project_name: &String) -> Result<()> {
             let mut contents = String::new();
             if file.unwrap().read_to_string(&mut contents).is_err() {
                 return None;
+            }
+
+            if dir.ends_with(project_name) {
+                return Some(dir.into());
             }
 
             contents

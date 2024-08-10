@@ -22,7 +22,3 @@ strip = "symbols"
 inherits = "release"
 debug = true
 strip = "none"
-
-[env]
-GUI_DIR = { value = "gui", relative = true }
-BINDINGS_DIR = { value = "gui/src/bindings", relative = true }

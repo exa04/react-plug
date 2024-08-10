@@ -7,7 +7,6 @@ use react_plug::prelude::*;
 
 use crossbeam_channel::{Receiver, Sender};
 use include_dir::{include_dir, Dir};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub struct ExamplePlugin {
