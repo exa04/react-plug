@@ -7,8 +7,8 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-nih_plug = {git = "https://github.com/robbert-vdh/nih-plug.git", features = ["assert_process_allocs", "standalone",]}
-react_plug = {path = "../"}
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = ["assert_process_allocs", "standalone", ] }
+react_plug = { path = "../" }
 crossbeam-channel = "0.5.13"
 include_dir = "0.7.4"
 serde = { version = "1.0.204", features = ["derive"] }

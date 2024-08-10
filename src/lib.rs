@@ -1,26 +1,20 @@
 pub mod editor;
 
 pub mod prelude {
-    pub use react_plug_derive::*;
     pub use crate::editor::ReactPlugEditor;
+    pub use react_plug_derive::*;
 }
 
 pub use react_plug_derive::*;
 
 pub trait PluginMsg<P: ParamType>:
-serde::Serialize +
-serde::de::DeserializeOwned +
-Send +
-ts_rs::TS
+    serde::Serialize + serde::de::DeserializeOwned + Send + ts_rs::TS
 {
     fn parameter_change(param_type: P) -> Self;
 }
 
 pub trait GuiMsg<P: ParamType>:
-serde::Serialize +
-serde::de::DeserializeOwned +
-Send +
-ts_rs::TS
+    serde::Serialize + serde::de::DeserializeOwned + Send + ts_rs::TS
 {
     fn is_init(&self) -> bool;
     fn is_param_update_and<F: FnOnce(&P)>(&self, action: F);
@@ -29,12 +23,11 @@ ts_rs::TS
 pub trait Parameters: nih_plug::params::Params {
     type ParamType: ParamType;
 
-    fn send_all<PM: PluginMsg<Self::ParamType> + 'static>(&self, sender: crossbeam_channel::Sender<PM>);
+    fn send_all<PM: PluginMsg<Self::ParamType> + 'static>(
+        &self,
+        sender: crossbeam_channel::Sender<PM>,
+    );
     fn set_param(&self, setter: &nih_plug::context::gui::ParamSetter, param: &Self::ParamType);
 }
 
-pub trait ParamType:
-    serde::Serialize + 
-    serde::Deserialize<'static> +
-    ts_rs::TS
-{ }
+pub trait ParamType: serde::Serialize + serde::Deserialize<'static> + ts_rs::TS {}

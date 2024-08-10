@@ -18,6 +18,7 @@ ts-rs = "9.0.1"
 resolver = "2"
 members = [
     "react_plug_derive",
+    "react_plug_xtask",
     "xtask",
     "example",
 ]
