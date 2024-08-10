@@ -583,9 +583,9 @@ export const usePluginContext = () => {{
 export default PluginProvider;
 "#, #declarations, init);
 
-
-                            let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("gui/src/bindings/PluginProvider.tsx");
-                            let mut file = File::create(path).unwrap();
+                            let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("gui/src/bindings");
+                            std::fs::create_dir_all(&path);
+                            let mut file = File::create(path.join("PluginProvider.tsx")).unwrap();
                             file.write_all(ts.as_bytes()).unwrap();
                         }
                     }
