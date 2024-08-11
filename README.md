@@ -1,4 +1,4 @@
-<a href="react-plug.vercel.app/guides/quick-start">
+<a href="https://react-plug.vercel.app/guides/quick-start">
 <svg width="1730" height="667" viewBox="0 0 1730 667" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g clip-path="url(#clip0_44_10)">
 <rect width="1730" height="667" rx="48" fill="black"/>
