@@ -10,3 +10,4 @@ anyhow = "1.0.86"
 nih_plug_xtask = { git = "https://github.com/robbert-vdh/nih-plug" }
 which = "6.0.2"
 toml = "0.8.19"
+rayon = "1.10.0"
