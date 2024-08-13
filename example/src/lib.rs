@@ -77,6 +77,7 @@ impl Plugin for ExamplePlugin {
             self.params.clone(),
             &EDITOR_DIR,
             self.editor_channel.clone(),
+            (800, 600),
         )
         .with_developer_mode(true)
         .with_message_handler(move |message| {
