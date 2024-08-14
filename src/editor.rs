@@ -35,25 +35,27 @@ where
             crossbeam_channel::Sender<PM>,
             crossbeam_channel::Receiver<PM>,
         ),
+        size: (u32, u32),
     ) -> Self {
         let plugin_sender = editor_channel.0.clone();
         let plugin_receiver = editor_channel.1.clone();
-        let protocol: &'static str = "reactplug";
-
-        #[cfg(target_os = "windows")]
-        let url_scheme = "http://reactplug.localhost";
-        // TODO: Not tested on Linux / MacOS
-        #[cfg(not(target_os = "windows"))]
-        let url_scheme = "reactplug://localhost";
-
-        let url = HTMLSource::URL(url_scheme.into());
 
         let editor_params = params.clone();
 
-        // TODO: Size is not relative to current DPI
-        let editor = WebViewEditor::new(url, (700, 500))
-            // TODO: Run with hot-reload Vite server in development? Maybe?
-            .with_custom_protocol(protocol.parse().unwrap(), |req| {
+        let editor = if cfg!(rp_dev) {
+            WebViewEditor::new(HTMLSource::URL("http://localhost:5173"), size)
+        } else {
+            let protocol: &'static str = "reactplug";
+
+            #[cfg(target_os = "windows")]
+            let url_scheme = "http://reactplug.localhost";
+            // TODO: Not tested on Linux / MacOS
+            #[cfg(not(target_os = "windows"))]
+            let url_scheme = "reactplug://localhost";
+
+            let url = HTMLSource::URL(url_scheme.into());
+
+            WebViewEditor::new(url, size).with_custom_protocol(protocol.parse().unwrap(), |req| {
                 let path = req.uri().path();
 
                 let path = if path == "/" {
@@ -82,6 +84,7 @@ where
                         .map_err(Into::into)
                 }
             })
+        }
             .with_event_loop(move |ctx, setter, _window| {
                 while let Ok(value) = ctx.next_event() {
                     if let Ok(message) = serde_json::from_value::<GM>(value) {
@@ -171,6 +174,10 @@ where
     }
 
     pub fn with_protocol(mut self, protocol: &'static str) -> Self {
+        if cfg!(rp_dev) {
+            return self;
+        }
+
         #[cfg(target_os = "windows")]
         let url_scheme = format!("http://{}.localhost", protocol);
         // TODO: Not tested on Linux / MacOS
