@@ -23,6 +23,20 @@ rp_params! {
             name: "Int Test",
             value: 0,
             range: IntRange::Linear { min: 0, max: 10 }
-        }
+        },
+        enum_test: EnumParam<TestEnum> {
+            name: "Enum Test",
+            value: TestEnum::A,
+        },
     }
+}
+
+#[derive(Enum, Copy, Clone, PartialEq, ts_rs::TS, serde::Serialize, serde::Deserialize)]
+enum TestEnum {
+    #[name = "Option A"]
+    A,
+    #[name = "Option B"]
+    B,
+    #[name = "Option C"]
+    C,
 }

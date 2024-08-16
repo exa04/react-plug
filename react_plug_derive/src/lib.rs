@@ -10,7 +10,6 @@ use syn::{parse_macro_input, Data, DataEnum, DeriveInput, Expr, ExprStruct, Meta
 mod params;
 
 // TODO: Skipping fields
-// TODO: EnumParam support
 #[proc_macro]
 pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let params = syn::parse::<RPParams>(input).unwrap();
@@ -41,6 +40,7 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 RPParamType::BoolParam => {
                     quote! {bool}
                 }
+                RPParamType::EnumParam(ty) => ty.clone().to_token_stream(),
             };
             let ident = Ident::new(
                 param.ident.to_string().to_upper_camel_case().as_str(),
@@ -84,9 +84,10 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             let ty = &param.ty;
 
             let required = match ty {
-                RPParamType::FloatParam => { vec!["name", "value", "range"] },
-                RPParamType::IntParam => { vec!["name", "value", "range"] },
+                RPParamType::FloatParam => { vec!["name", "value", "range"] }
+                RPParamType::IntParam => { vec!["name", "value", "range"] }
                 RPParamType::BoolParam => { vec!["name", "value"] }
+                RPParamType::EnumParam(_) => { vec!["name", "value"] }
             };
 
             let (required_params, modifier_params): (Vec<_>, Vec<_>) = param.fields.iter()
@@ -110,6 +111,14 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             });
 
             let variant = variant(&param.ident);
+
+            let ty = if let RPParamType::EnumParam(enum_type) = ty {
+                quote! {
+                    EnumParam::<#enum_type>
+                }
+            } else {
+                ty.to_token_stream()
+            };
 
             quote! {
                 #ident: #ty::new(
@@ -141,7 +150,7 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             let ident = &param.ident;
             let variant = variant(&param.ident);
 
-            quote!{
+            quote! {
                 sender.send(PM::parameter_change(#enum_ident::#variant(self.#ident.value()))).unwrap();
             }
         });
@@ -189,6 +198,11 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     RPParamType::FloatParam => format!("{}: ReactPlug.Parameters.FloatParam", id),
                     RPParamType::IntParam => format!("{}: ReactPlug.Parameters.IntParam", id),
                     RPParamType::BoolParam => format!("{}: ReactPlug.Parameters.BoolParam", id),
+                    RPParamType::EnumParam(t) => format!(
+                        "{}: ReactPlug.Parameters.EnumParam<{}>",
+                        id,
+                        t.to_token_stream()
+                    ),
                 }
             })
             .collect::<Vec<String>>()
@@ -480,6 +494,30 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     initializer.push_str(&format!(
                         r#"new ReactPlug.Parameters.BoolParam("{}", "{{}}", {{}}, {{{{ {}}}}}), "#,
                         param.ident.to_string().to_upper_camel_case(),
+                        options
+                    ));
+                }
+                RPParamType::EnumParam(ty) => {
+                    let mut options = String::new();
+
+                    expressions.push(field_by_id("name"));
+
+                    let value = if let Expr::Path(path) = field_by_id("value") {
+                        let mut seg = path.path.segments.iter();
+
+                        let enum_type = seg.next().unwrap().ident.to_string();
+                        let variant = seg.next().unwrap().ident.to_string();
+
+                        format!(r#"{enum_type}.{variant}", "#)
+                    } else {
+                        panic!("EnumParam value must be a path to a variant");
+                    };
+
+                    initializer.push_str(&format!(
+                        r#"new ReactPlug.Parameters.EnumParam<{}>("{}", "{{}}", {}, {{{{ {} }}}}), "#,
+                        ty.to_token_stream(),
+                        param.ident.to_string().to_upper_camel_case(),
+                        value,
                         options
                     ));
                 }
