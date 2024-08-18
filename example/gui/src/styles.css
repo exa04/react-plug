@@ -9,15 +9,19 @@ body {
     height: 100vh;
     font-size: 16px;
 }
+
 .container {
     max-width: 320px;
 }
+
 h1 {
     margin: 8px 0;
 }
+
 .leading {
     font-size: 1.2rem;
 }
+
 .input-group {
     width: 100%;
     flex-grow: 1;
@@ -64,7 +68,7 @@ h1 {
     border-radius: 8px;
     background: #FFFFFF;
     box-shadow: -407px 0 0 400px #FFFFFF,
-        0 0 24px #000;
+    0 0 24px #000;
     opacity: 0.6;
 }
 
@@ -102,5 +106,14 @@ button:hover {
 }
 
 button:active {
-     background: #0284c7;
+    background: #0284c7;
+}
+
+select {
+    height: 40px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 8px;
+    background: #e5e5e5;
+    font-size: 1rem;
 }

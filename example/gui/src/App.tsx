@@ -10,12 +10,13 @@ function App() {
   const gain = ctx.parameters.gain;
   const boolTest = ctx.parameters.boolTest;
   const intTest = ctx.parameters.intTest;
+  const enumTest = ctx.parameters.enumTest;
 
   const [pongCount, setPongCount] = useState(0);
 
   useEffect(() => {
     const handler = (message: PluginMessage) => {
-      if(message === "Pong")
+      if (message === "Pong")
         setPongCount(prevCount => prevCount + 1);
     };
 
@@ -67,6 +68,18 @@ function App() {
           <div>{boolTest.name}: {boolTest.value}</div>
         </div>
         <a onClick={() => boolTest.toggle()}>Toggle</a>
+      </div>
+      <div className="input-group">
+        <div className="labeled-input">
+          <div>{enumTest.name}: {enumTest.rawValue}</div>
+        </div>
+        <select value={enumTest.rawValue} onChange={e => enumTest.setValue(e.target.value)}>
+          {Object.entries(enumTest.variants).map(variant =>
+            <option value={variant[0]}>
+              {variant[1]}
+            </option>
+          )}
+        </select>
       </div>
       <hr/>
       <div className="message-group">
