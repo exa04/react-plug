@@ -494,61 +494,86 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     expressions.push(field_by_id("name"));
                     expressions.push(field_by_id("value"));
 
-                    let range = match field_by_id("range") {
-                        Expr::Struct(range) => {
-                            let mut range_to_ts = |range: &ExprStruct| {
-                                let field_by_id = |range: &ExprStruct, id: &str| -> Expr {
-                                    range
-                                        .fields
+                    fn range_to_ts(range: &Expr, expressions: &mut Vec<Expr>) -> String {
+                        match range {
+                            Expr::Struct(range) => {
+                                let mut range_to_ts = |range: &ExprStruct| {
+                                    let field_by_id = |range: &ExprStruct, id: &str| -> Expr {
+                                        range
+                                            .fields
+                                            .iter()
+                                            .find(|field| {
+                                                field.member.to_token_stream().to_string() == id
+                                            })
+                                            .unwrap_or_else(|| {
+                                                panic!("No value for param field \"{}\" provided!", id)
+                                            })
+                                            .expr
+                                            .clone()
+                                    };
+
+                                    let path = range
+                                        .path
+                                        .segments
                                         .iter()
-                                        .find(|field| {
-                                            field.member.to_token_stream().to_string() == id
-                                        })
-                                        .unwrap_or_else(|| {
-                                            panic!("No value for param field \"{}\" provided!", id)
-                                        })
-                                        .expr
-                                        .clone()
-                                };
+                                        .map(|segment| segment.ident.to_string())
+                                        .collect::<Vec<String>>();
 
-                                let path = range
-                                    .path
-                                    .segments
-                                    .iter()
-                                    .map(|segment| segment.ident.to_string())
-                                    .collect::<Vec<String>>();
-
-                                let range_type = match &path[..] {
-                                    [.., r, t] => {
-                                        if r != "IntRange" {
-                                            panic!("Invalid range type: {}", r);
+                                    let range_type = match &path[..] {
+                                        [.., r, t] => {
+                                            if r != "IntRange" {
+                                                panic!("Invalid range type: {}", r);
+                                            }
+                                            t
                                         }
-                                        t
+                                        [t] => t,
+                                        _ => panic!("Invalid range type"),
+                                    };
+
+                                    match range_type.as_str() {
+                                        "Linear" => {
+                                            expressions.push(field_by_id(range, "min"));
+                                            expressions.push(field_by_id(range, "max"));
+                                            "new ReactPlug.Ranges.LinearRange({}, {})".to_string()
+                                        }
+                                        r => panic!("Invalid range type: {}", r),
                                     }
-                                    [t] => t,
-                                    _ => panic!("Invalid range type"),
                                 };
 
-                                match range_type.as_str() {
-                                    "Linear" => {
-                                        expressions.push(field_by_id(range, "min"));
-                                        expressions.push(field_by_id(range, "max"));
-                                        "new ReactPlug.Ranges.LinearRange({}, {})".to_string()
-                                    }
-                                    "Reversed" => {
-                                        todo!()
-                                    }
-                                    r => panic!("Invalid range type: {}", r),
-                                }
-                            };
+                                range_to_ts(&range)
+                            }
+                            Expr::Call(call) => {
+                                if let Expr::Path(path) = call.func.deref() {
+                                    let path = path
+                                        .path
+                                        .segments
+                                        .iter()
+                                        .map(|segment| segment.ident.to_string())
+                                        .collect::<Vec<String>>();
 
-                            range_to_ts(&range)
+                                    if match &path[..] {
+                                        [.., r, t] => {
+                                            if r != "IntRange" {
+                                                panic!("Invalid range type: {}", r);
+                                            }
+                                            t
+                                        }
+                                        [t] => t,
+                                        _ => panic!("Invalid range type"),
+                                    } == "Reversed" {
+                                        format!("new ReactPlug.Ranges.ReversedRange({})", range_to_ts(call.args.first().expect("No range provided for ReversedRange"), expressions))
+                                    } else {
+                                        panic!("Invalid range");
+                                    }
+                                } else {
+                                    panic!("Invalid range");
+                                }
+                            }
+                            _ => panic!("Range is not a struct"),
                         }
-                        Expr::Call(_) => {
-                            todo!()
-                        }
-                        _ => panic!("Range is not a struct"),
-                    };
+                    }
+
+                    let range = range_to_ts(&field_by_id("range"), &mut expressions);
 
                     let mut options = String::new();
 
@@ -582,7 +607,6 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         }
                     }
 
-                    //                                       id     name   value range options
                     initializer.push_str(&format!(
                         r#"new ReactPlug.Parameters.IntParam("{}", "{{}}", {{}}, {}, {{{{ {}}}}}), "#,
                         param.ident.to_string().to_upper_camel_case(),
