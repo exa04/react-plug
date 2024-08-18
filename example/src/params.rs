@@ -15,6 +15,16 @@ rp_params! {
             value_to_string: formatters::v2s_f32_gain_to_db(2),
             string_to_value: formatters::s2v_f32_gain_to_db(),
         },
+        reversed: FloatParam {
+            name: "Reversed",
+            value: 0.0,
+            range: FloatRange::Reversed (
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 1.0,
+                },
+            ),
+        },
         bool_test: BoolParam {
             name: "Bool Test",
             value: false
