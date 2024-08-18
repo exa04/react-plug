@@ -4,6 +4,7 @@ use heck::{ToLowerCamelCase, ToUpperCamelCase};
 use params::*;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
+use std::ops::Deref;
 use syn::punctuated::Punctuated;
 use syn::Expr::Struct;
 use syn::{
@@ -140,7 +141,21 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 let expr = required_params.iter()
                     .find(|field| *field.ident.to_string() == name.to_string())
                     .unwrap().expr.clone();
-                &args.push(expr);
+
+                if name == &"range" {
+                    if let Expr::Call(call) = &expr {
+                        if let Expr::Path(path) = call.func.deref() {
+                            if path.path.segments.last().unwrap().ident == "Reversed" {
+                                let expr = call.args.first().unwrap();
+
+                                args.push(Expr::Verbatim(quote! {#path(&#expr)}));
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                args.push(expr);
             });
 
             if let RPParamType::EnumParam = ty {
@@ -160,17 +175,17 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             }
 
             let modifiers = modifier_params.iter().filter_map(|param| -> Option<TokenStream> {
-                let arg = &param.expr;
+                let mut arg = &param.expr.clone();
 
                 // TODO: Use a more sophisticated system
 
                 let ident = &param.ident.to_string();
 
+                let modifier = Ident::new(format!("with_{}", ident).as_str(), Span::call_site());
+
                 if ident == "variants" {
                     return None;
                 }
-
-                let modifier = Ident::new(format!("with_{}", ident).as_str(), Span::call_site());
 
                 Some(quote! {.#modifier(#arg)})
             });
@@ -339,9 +354,9 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                     expressions.push(field_by_id("name"));
                     expressions.push(field_by_id("value"));
 
-                    let range = match field_by_id("range") {
-                        Expr::Struct(range) => {
-                            let mut range_to_ts = |range: &ExprStruct| {
+                    fn range_to_ts(range: &Expr, expressions: &mut Vec<Expr>) -> String {
+                        match range {
+                            Expr::Struct(range) => {
                                 let field_by_id = |range: &ExprStruct, id: &str| -> Expr {
                                     range
                                         .fields
@@ -376,38 +391,59 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
                                 match range_type.as_str() {
                                     "Linear" => {
-                                        expressions.push(field_by_id(range, "min"));
-                                        expressions.push(field_by_id(range, "max"));
+                                        expressions.push(field_by_id(&range, "min"));
+                                        expressions.push(field_by_id(&range, "max"));
                                         "new ReactPlug.Ranges.LinearRange({}, {})".to_string()
                                     }
                                     "Skewed" => {
-                                        expressions.push(field_by_id(range, "min"));
-                                        expressions.push(field_by_id(range, "max"));
-                                        expressions.push(field_by_id(range, "factor"));
+                                        expressions.push(field_by_id(&range, "min"));
+                                        expressions.push(field_by_id(&range, "max"));
+                                        expressions.push(field_by_id(&range, "factor"));
                                         "new ReactPlug.Ranges.SkewedRange({}, {}, {})".to_string()
                                     }
                                     "SymmetricalSkewed" => {
-                                        expressions.push(field_by_id(range, "min"));
-                                        expressions.push(field_by_id(range, "max"));
-                                        expressions.push(field_by_id(range, "factor"));
-                                        expressions.push(field_by_id(range, "center"));
+                                        expressions.push(field_by_id(&range, "min"));
+                                        expressions.push(field_by_id(&range, "max"));
+                                        expressions.push(field_by_id(&range, "factor"));
+                                        expressions.push(field_by_id(&range, "center"));
                                         "new ReactPlug.Ranges.SymmetricalSkewedRange({}, {}, {}, {})"
                                             .to_string()
                                     }
-                                    "Reversed" => {
-                                        todo!()
-                                    }
                                     r => panic!("Invalid range type: {}", r),
                                 }
-                            };
+                            }
+                            Expr::Call(call) => {
+                                if let Expr::Path(path) = call.func.deref() {
+                                    let path = path
+                                        .path
+                                        .segments
+                                        .iter()
+                                        .map(|segment| segment.ident.to_string())
+                                        .collect::<Vec<String>>();
 
-                            range_to_ts(&range)
+                                    if match &path[..] {
+                                        [.., r, t] => {
+                                            if r != "FloatRange" {
+                                                panic!("Invalid range type: {}", r);
+                                            }
+                                            t
+                                        }
+                                        [t] => t,
+                                        _ => panic!("Invalid range type"),
+                                    } == "Reversed" {
+                                        format!("new ReactPlug.Ranges.ReversedRange({})", range_to_ts(call.args.first().expect("No range provided for ReversedRange"), expressions))
+                                    } else {
+                                        panic!("Invalid range");
+                                    }
+                                } else {
+                                    panic!("Invalid range");
+                                }
+                            }
+                            _ => panic!("Range is not a struct"),
                         }
-                        Expr::Call(_) => {
-                            todo!()
-                        }
-                        _ => panic!("Range is not a struct"),
-                    };
+                    }
+
+                    let range = range_to_ts(&field_by_id("range"), &mut expressions);
 
                     let mut options = String::new();
 
