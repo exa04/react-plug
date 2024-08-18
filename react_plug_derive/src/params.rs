@@ -1,15 +1,15 @@
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::ToTokens;
-use syn::{braced, Error, Expr, token, Token, Type};
+use proc_macro2::{Ident, TokenStream};
+use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
+use syn::{braced, token, Error, Expr, Token, Type};
 
 /// A Params declaration. An identifier, followed by a braced declaration of all
 /// parameters as [RPParams](RPParam).
 ///
 /// ## Example
-/// 
+///
 /// ```rust
 /// ExampleParams {
 ///     gain: FloatParam {
@@ -39,13 +39,13 @@ use syn::spanned::Spanned;
 pub struct RPParams {
     pub ident: Ident,
     pub brace_token: token::Brace,
-    pub params: Punctuated<RPParam, Token![,]>
+    pub params: Punctuated<RPParam, Token![,]>,
 }
 
 impl Parse for RPParams {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content;
-        Ok(Self{
+        Ok(Self {
             ident: input.parse()?,
             brace_token: braced!(content in input),
             params: content.parse_terminated(RPParam::parse, Token![,])?,
@@ -55,9 +55,9 @@ impl Parse for RPParams {
 
 /// A single parameter declaration. An identifier, a colon, a [RPParamType], and a
 /// braced declaration of [RPParamFields](RPParamField).
-/// 
+///
 /// ## Example
-/// 
+///
 /// ```rust
 /// gain: FloatParam {
 ///     name: "Gain",
@@ -78,14 +78,14 @@ pub struct RPParam {
     pub colon_token: Token![:],
     pub ty: RPParamType,
     pub brace_token: token::Brace,
-    pub fields: Punctuated<RPParamField, Token![,]>
+    pub fields: Punctuated<RPParamField, Token![,]>,
 }
 
 impl Parse for RPParam {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let content;
 
-        Ok(Self{
+        Ok(Self {
             ident: input.parse()?,
             colon_token: input.parse()?,
             ty: input.parse()?,
@@ -97,15 +97,15 @@ impl Parse for RPParam {
 
 /// A single field of a parameter declaration. An identifier, a colon, and an
 /// expression.
-/// 
+///
 /// ## Examples
 ///
 /// A string field:
-/// 
+///
 /// ```rust
 /// name: "Gain"
 /// ```
-/// 
+///
 /// A field that is assigned by a function call:
 ///
 /// ```rust
@@ -119,7 +119,7 @@ pub struct RPParamField {
 
 impl Parse for RPParamField {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        Ok(Self{
+        Ok(Self {
             ident: input.parse()?,
             colon_token: input.parse()?,
             expr: input.parse()?,
@@ -131,34 +131,37 @@ impl Parse for RPParamField {
 pub enum RPParamType {
     FloatParam,
     IntParam,
-    BoolParam
+    BoolParam,
+    EnumParam,
 }
 
 impl ToTokens for RPParamType {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ident = match self {
-            RPParamType::FloatParam => Ident::new("FloatParam", Span::call_site()),
-            RPParamType::IntParam => Ident::new("IntParam", Span::call_site()),
-            RPParamType::BoolParam => Ident::new("BoolParam", Span::call_site()),
-        };
-        ident.to_tokens(tokens);
+        match self {
+            RPParamType::FloatParam => quote! {FloatParam},
+            RPParamType::IntParam => quote! {IntParam},
+            RPParamType::BoolParam => quote! {BoolParam},
+            RPParamType::EnumParam => quote! {EnumParam},
+        }
+        .to_tokens(tokens);
     }
 }
 
 impl Parse for RPParamType {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let ty: Type = input
-            .parse::<Type>()?;
+        let ty: Type = input.parse::<Type>()?;
 
-        let type_name = ty
-            .to_token_stream()
-            .to_string();
+        let type_name = ty.to_token_stream().to_string();
 
         match type_name.as_str() {
             "FloatParam" => Ok(RPParamType::FloatParam),
             "IntParam" => Ok(RPParamType::IntParam),
             "BoolParam" => Ok(RPParamType::BoolParam),
-            _ => Err(Error::new(ty.span(), format!("Unknown param type: {}", type_name)))
+            "EnumParam" => Ok(RPParamType::EnumParam),
+            _ => Err(Error::new(
+                ty.span(),
+                format!("Unknown param type: {}", type_name),
+            )),
         }
     }
 }

@@ -23,6 +23,15 @@ rp_params! {
             name: "Int Test",
             value: 0,
             range: IntRange::Linear { min: 0, max: 10 }
-        }
+        },
+        enum_test: EnumParam {
+            name: "Enum Test",
+            value: A,
+            variants: Variants {
+                A: "Option A",
+                B,
+                C: "Option C"
+            }
+        },
     }
 }

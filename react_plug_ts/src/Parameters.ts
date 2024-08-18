@@ -9,8 +9,7 @@ interface Parameter<T> {
   name: string,
   defaultValue: T,
   value: any,
-  setValue: Dispatch<SetStateAction<T>> | ((value: T) => void)
-  _setDisplayedValue: Dispatch<SetStateAction<T>>; // would love to make this package-private, but it's not possible in JS :(
+  setValue: Dispatch<SetStateAction<T>> | ((value: T) => void),
 }
 
 export class FloatParam implements Parameter<number> {
@@ -44,8 +43,12 @@ export class FloatParam implements Parameter<number> {
       formatter?: Formatter<number>,
     }
   ) {
-    this.id = id; this.name = name; this.defaultValue = defaultValue; this.range = range;
-    this.unit = options?.unit; this.stepSize = options?.stepSize;
+    this.id = id;
+    this.name = name;
+    this.defaultValue = defaultValue;
+    this.range = range;
+    this.unit = options?.unit;
+    this.stepSize = options?.stepSize;
     this.formatter = options?.formatter ?? (value => value.toFixed(2));
 
     [this.rawValue, this._setDisplayedValue] = useState(defaultValue);
@@ -54,13 +57,12 @@ export class FloatParam implements Parameter<number> {
     this.value = value;
 
     useEffect(() => {
-      console.debug("Setting value to", this.rawValue);
       setValue(this.formatter(this.rawValue));
     }, [this.rawValue]);
 
     this.setValue = (value) => {
-      if(value == this.rawValue) return;
-      sendToPlugin({ "ParameterChange": { [id]: value } })
+      if (value == this.rawValue) return;
+      sendToPlugin({"ParameterChange": {[id]: value}})
       this._setDisplayedValue(value);
     }
   }
@@ -113,14 +115,13 @@ export class IntParam implements Parameter<number> {
     this.range = range;
 
     useEffect(() => {
-      console.debug("Setting value to", this.rawValue);
       setValue(this.formatter(this.rawValue));
     }, [this.rawValue]);
 
     this.setValue = (value) => {
       value = Math.floor(value);
-      if(value == this.rawValue) return;
-      sendToPlugin({ "ParameterChange": { [id]: value } })
+      if (value == this.rawValue) return;
+      sendToPlugin({"ParameterChange": {[id]: value}})
       setRawValue(value);
     }
   }
@@ -140,7 +141,9 @@ export class BoolParam implements Parameter<boolean> {
   unit?: string;
   formatter: Formatter<boolean>;
 
-  toggle = () => {this.setValue(!this.rawValue)};
+  toggle = () => {
+    this.setValue(!this.rawValue)
+  };
 
   constructor(
     id: string,
@@ -167,13 +170,50 @@ export class BoolParam implements Parameter<boolean> {
     this.value = value;
 
     useEffect(() => {
-      console.debug("Setting value to", this.rawValue);
       setValue(this.formatter(this.rawValue));
     }, [this.rawValue]);
 
     this.setValue = (value: boolean) => {
-      sendToPlugin({ "ParameterChange": { [id]: value } })
+      sendToPlugin({"ParameterChange": {[id]: value}})
       setRawValue(value);
+    }
+  }
+}
+
+export class EnumParam implements Parameter<string> {
+  type = 'EnumParam';
+  id: string;
+  name: string;
+
+  variants: { [id: string]: string };
+
+  defaultValue: string;
+  rawValue: string;
+  value: string;
+
+  setValue: ((value: string) => void);
+  _setDisplayedValue: Dispatch<SetStateAction<string>>;
+
+  constructor(id: string, name: string, defaultValue: string, variants: { [id: string]: string }) {
+    this.id = id;
+    this.name = name;
+    this.defaultValue = defaultValue;
+    this.variants = variants;
+
+    const [rawValue, setRawValue] = useState(defaultValue);
+    this.rawValue = rawValue;
+    this._setDisplayedValue = setRawValue;
+
+    const [value, setValue] = useState(this.variants[defaultValue]);
+    this.value = value;
+
+    useEffect(() => {
+      setValue(this.variants[this.rawValue]);
+    }, [this.rawValue]);
+
+    this.setValue = (value: string) => {
+      sendToPlugin({"ParameterChange": {[id]: value}})
+      setValue(value);
     }
   }
 }

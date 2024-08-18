@@ -5,12 +5,14 @@ use params::*;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::punctuated::Punctuated;
-use syn::{parse_macro_input, Data, DataEnum, DeriveInput, Expr, ExprStruct, Meta, Token};
+use syn::Expr::Struct;
+use syn::{
+    parse_macro_input, Data, DataEnum, DeriveInput, Expr, ExprStruct, Lit, Member, Meta, Token,
+};
 
 mod params;
 
 // TODO: Skipping fields
-// TODO: EnumParam support
 #[proc_macro]
 pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let params = syn::parse::<RPParams>(input).unwrap();
@@ -41,12 +43,33 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 RPParamType::BoolParam => {
                     quote! {bool}
                 }
+                RPParamType::EnumParam => {
+                    let ident = Ident::new(
+                        format!(
+                            "{}{}",
+                            params.ident.to_string().to_upper_camel_case(),
+                            param.ident.to_string().to_upper_camel_case()
+                        )
+                            .as_str(),
+                        Span::call_site(),
+                    );
+                    quote! {#ident}
+                }
             };
             let ident = Ident::new(
                 param.ident.to_string().to_upper_camel_case().as_str(),
                 Span::call_site(),
             );
-            quote! {#ident(#ty)}
+            if let RPParamType::EnumParam = param.ty {
+                quote! {
+                    #[ts(skip)]
+                    #ident(#ty)
+                }
+            } else {
+                quote! {
+                    #ident(#ty)
+                }
+            }
         });
 
         quote! {
@@ -61,12 +84,30 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let param_struct = {
         let param_struct_fields = params.params.iter().map(|param| {
             let ident = &param.ident;
-            let ty = &param.ty;
             let id = ident.to_string();
 
-            quote! {
-                #[id = #id]
-                pub #ident: #ty
+            let ty = &param.ty;
+
+            if let RPParamType::EnumParam = ty {
+                let enum_ident = Ident::new(
+                    format!(
+                        "{}{}",
+                        params.ident.to_string().to_upper_camel_case(),
+                        ident.to_string().to_upper_camel_case()
+                    )
+                        .as_str(),
+                    Span::call_site(),
+                );
+
+                quote! {
+                    #[id = #id]
+                    pub #ident: EnumParam<#enum_ident>
+                }
+            } else {
+                quote! {
+                    #[id = #id]
+                    pub #ident: #ty
+                }
             }
         });
 
@@ -84,9 +125,10 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             let ty = &param.ty;
 
             let required = match ty {
-                RPParamType::FloatParam => { vec!["name", "value", "range"] },
-                RPParamType::IntParam => { vec!["name", "value", "range"] },
+                RPParamType::FloatParam => { vec!["name", "value", "range"] }
+                RPParamType::IntParam => { vec!["name", "value", "range"] }
                 RPParamType::BoolParam => { vec!["name", "value"] }
+                RPParamType::EnumParam => { vec!["name", "value"] }
             };
 
             let (required_params, modifier_params): (Vec<_>, Vec<_>) = param.fields.iter()
@@ -98,15 +140,39 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 let expr = required_params.iter()
                     .find(|field| *field.ident.to_string() == name.to_string())
                     .unwrap().expr.clone();
-                args.push(expr);
+                &args.push(expr);
             });
 
-            let modifiers = modifier_params.iter().map(|param| -> TokenStream {
+            if let RPParamType::EnumParam = ty {
+                let enum_ident = Ident::new(
+                    format!(
+                        "{}{}",
+                        params.ident.to_string().to_upper_camel_case(),
+                        ident.to_string().to_upper_camel_case()
+                    )
+                        .as_str(),
+                    Span::call_site(),
+                ).to_token_stream();
+
+                let value = args.get(1).unwrap().to_token_stream().clone();
+
+                *args.get_mut(1).unwrap() = Expr::Verbatim(quote! {#enum_ident::#value});
+            }
+
+            let modifiers = modifier_params.iter().filter_map(|param| -> Option<TokenStream> {
                 let arg = &param.expr;
 
-                let modifier = Ident::new(format!("with_{}", &param.ident.to_string()).as_str(), Span::call_site());
+                // TODO: Use a more sophisticated system
 
-                quote! {.#modifier(#arg)}
+                let ident = &param.ident.to_string();
+
+                if ident == "variants" {
+                    return None;
+                }
+
+                let modifier = Ident::new(format!("with_{}", ident).as_str(), Span::call_site());
+
+                Some(quote! {.#modifier(#arg)})
             });
 
             let variant = variant(&param.ident);
@@ -141,7 +207,7 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             let ident = &param.ident;
             let variant = variant(&param.ident);
 
-            quote!{
+            quote! {
                 sender.send(PM::parameter_change(#enum_ident::#variant(self.#ident.value()))).unwrap();
             }
         });
@@ -176,6 +242,61 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         }
     };
 
+    let enum_params = {
+        params.params.iter().filter_map(|param| {
+            if let RPParamType::EnumParam = param.ty {
+                let ident = &param.ident;
+                let enum_ident = Ident::new(
+                    format!(
+                        "{}{}",
+                        params.ident.to_string().to_upper_camel_case(),
+                        ident.to_string().to_upper_camel_case()
+                    )
+                        .as_str(),
+                    Span::call_site(),
+                );
+                let variants_field = &param
+                    .fields
+                    .iter()
+                    .find(|field| field.ident == "variants")
+                    .expect(format!("No variants field for param \"{}\" provided!", ident).as_str())
+                    .expr;
+
+                let param_enum = if let Struct(s) = variants_field {
+                    let variants = s.fields.iter().map(|field| {
+                        let id = if let Member::Named(ident) = &field.member {
+                            ident
+                        } else {
+                            panic!("Invalid syntax for \"variants\" field");
+                        };
+
+                        if let Expr::Lit(name) = &field.expr {
+                            quote! {
+                                #[name = #name]
+                                #id
+                            }
+                        } else {
+                            id.to_token_stream()
+                        }
+                    });
+
+                    quote! {
+                        #[derive(nih_plug::prelude::Enum, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
+                        pub enum #enum_ident {
+                            #(#variants),*
+                        }
+                    }
+                } else {
+                    panic!("Invalid syntax for \"variants\" field");
+                };
+
+                Some(param_enum)
+            } else {
+                None
+            }
+        })
+    };
+
     let test_block = {
         let declarations = params
             .params
@@ -185,11 +306,7 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 let ty = &param.ty;
                 let id = ident.to_string().to_lower_camel_case();
 
-                match ty {
-                    RPParamType::FloatParam => format!("{}: ReactPlug.Parameters.FloatParam", id),
-                    RPParamType::IntParam => format!("{}: ReactPlug.Parameters.IntParam", id),
-                    RPParamType::BoolParam => format!("{}: ReactPlug.Parameters.BoolParam", id),
-                }
+                format!("{}: ReactPlug.Parameters.{}", id, ty.to_token_stream())
             })
             .collect::<Vec<String>>()
             .join(",\n  ");
@@ -203,22 +320,18 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                 (&param.ident).to_string().to_lower_camel_case()
             ));
 
-            let field_by_id = |id: &str| {
-                param
-                    .fields
-                    .iter()
-                    .find(|field| field.ident == id)
-                    .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
-                    .expr
-                    .clone()
-            };
-
             let optional_field_by_id = |id: &str| {
                 param
                     .fields
                     .iter()
                     .find(|field| field.ident == id)
                     .map(|field| field.expr.clone())
+            };
+
+            let field_by_id = |id: &str| {
+                optional_field_by_id(id)
+                    .unwrap_or_else(|| panic!("No value for param field \"{}\" provided!", id))
+                    .clone()
             };
 
             match &param.ty {
@@ -433,7 +546,7 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         }
                     }
 
-                    //                                                    name  id     value range options
+                    //                                       id     name   value range options
                     initializer.push_str(&format!(
                         r#"new ReactPlug.Parameters.IntParam("{}", "{{}}", {{}}, {}, {{{{ {}}}}}), "#,
                         param.ident.to_string().to_upper_camel_case(),
@@ -482,6 +595,48 @@ pub fn rp_params<'a>(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
                         param.ident.to_string().to_upper_camel_case(),
                         options
                     ));
+                }
+                RPParamType::EnumParam => {
+                    expressions.push(field_by_id("name"));
+                    &param.fields;
+
+                    let value = format!(
+                        r#""{}""#,
+                        field_by_id("value").to_token_stream()
+                    );
+
+                    let variants = if let Expr::Struct(variants) = field_by_id("variants") {
+                        variants.fields.iter().map(|field| {
+                            let id = if let Member::Named(ident) = &field.member {
+                                ident.to_token_stream().to_string()
+                            } else {
+                                panic!("Invalid syntax for \"variants\" field");
+                            };
+
+                            let name = if let Expr::Lit(name) = &field.expr {
+                                if let Lit::Str(s) = &name.lit {
+                                    s.value()
+                                } else {
+                                    panic!("Invalid syntax for \"variants\" field");
+                                }
+                            } else {
+                                id.clone()
+                            };
+
+                            format!(r#"{id}: "{name}""#)
+                        }).collect::<Vec<String>>().join(", ")
+                    } else {
+                        panic!("Invalid syntax for \"variants\" field");
+                    };
+
+                    let s = format!(
+                        r#"new ReactPlug.Parameters.EnumParam("{}", "{{}}", {}, {{{{ {} }}}}), "#,
+                        param.ident.to_string().to_upper_camel_case(),
+                        value,
+                        variants
+                    );
+
+                    initializer.push_str(&s);
                 }
             };
         });
@@ -554,6 +709,8 @@ const PluginProvider: FC<{{ children: ReactNode }}> = ({{children}}) => {{
           (param as unknown as ReactPlug.Parameters.IntParam)._setDisplayedValue(value as unknown as number);
         else if (param.type == 'BoolParam')
           (param as unknown as ReactPlug.Parameters.BoolParam)._setDisplayedValue(value as unknown as boolean);
+        else if (param.type == 'EnumParam')
+          (param as unknown as ReactPlug.Parameters.EnumParam)._setDisplayedValue(value as unknown as string);
       }} else {{
         eventEmitter.current.emit('pluginMessage', message as PluginMessage);
       }}
@@ -584,7 +741,7 @@ export default PluginProvider;
 "#, #declarations, init);
 
                             let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("gui/src/bindings");
-                            std::fs::create_dir_all(&path);
+                            std::fs::create_dir_all(&path).expect("Couldn't create directory for bindings");
                             let mut file = File::create(path.join("PluginProvider.tsx")).unwrap();
                             file.write_all(ts.as_bytes()).unwrap();
                         }
@@ -604,10 +761,12 @@ export default PluginProvider;
 
             #impl_parameters_block
 
+            #(#enum_params)*
+
             #test_block
         }
     }
-    .into()
+        .into()
 }
 
 #[proc_macro_attribute]
