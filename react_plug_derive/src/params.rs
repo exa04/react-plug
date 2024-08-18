@@ -132,7 +132,7 @@ pub enum RPParamType {
     FloatParam,
     IntParam,
     BoolParam,
-    EnumParam(Type),
+    EnumParam,
 }
 
 impl ToTokens for RPParamType {
@@ -141,9 +141,9 @@ impl ToTokens for RPParamType {
             RPParamType::FloatParam => quote! {FloatParam},
             RPParamType::IntParam => quote! {IntParam},
             RPParamType::BoolParam => quote! {BoolParam},
-            RPParamType::EnumParam(ty) => quote! {EnumParam<#ty>},
+            RPParamType::EnumParam => quote! {EnumParam},
         }
-            .to_tokens(tokens);
+        .to_tokens(tokens);
     }
 }
 
@@ -157,49 +157,11 @@ impl Parse for RPParamType {
             "FloatParam" => Ok(RPParamType::FloatParam),
             "IntParam" => Ok(RPParamType::IntParam),
             "BoolParam" => Ok(RPParamType::BoolParam),
-            _ => {
-                if let Type::Path(ty_path) = ty {
-                    let args = ty_path
-                        .path
-                        .segments
-                        .iter()
-                        .find_map(|seg| {
-                            if let syn::PathArguments::AngleBracketed(arg) = &seg.arguments {
-                                if seg.ident == "EnumParam" {
-                                    Some(arg)
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        })
-                        .unwrap()
-                        .clone()
-                        .args;
-
-                    if args.len() != 1 {
-                        return Err(Error::new(
-                            ty_path.span(),
-                            "EnumParam must have exactly one type argument",
-                        ));
-                    }
-
-                    if let syn::GenericArgument::Type(ty) = args.first().unwrap() {
-                        Ok(RPParamType::EnumParam(ty.clone()))
-                    } else {
-                        Err(Error::new(
-                            ty_path.span(),
-                            "EnumParam must have exactly one type argument",
-                        ))
-                    }
-                } else {
-                    Err(Error::new(
-                        ty.span(),
-                        format!("Unknown param type: {}", type_name),
-                    ))
-                }
-            }
+            "EnumParam" => Ok(RPParamType::EnumParam),
+            _ => Err(Error::new(
+                ty.span(),
+                format!("Unknown param type: {}", type_name),
+            )),
         }
     }
 }

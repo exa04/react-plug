@@ -24,19 +24,14 @@ rp_params! {
             value: 0,
             range: IntRange::Linear { min: 0, max: 10 }
         },
-        enum_test: EnumParam<TestEnum> {
+        enum_test: EnumParam {
             name: "Enum Test",
-            value: TestEnum::A,
+            value: A,
+            variants: Variants {
+                A: "Option A",
+                B,
+                C: "Option C"
+            }
         },
     }
-}
-
-#[derive(Enum, Copy, Clone, PartialEq, ts_rs::TS, serde::Serialize, serde::Deserialize)]
-enum TestEnum {
-    #[name = "Option A"]
-    A,
-    #[name = "Option B"]
-    B,
-    #[name = "Option C"]
-    C,
 }
