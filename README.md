@@ -1,3 +1,12 @@
+> [!Warning]
+> This framework is very early on in development. Bugs, crashes, and unexpected weirdness are basically guaranteed. Currently, it only works on Windows. There are also some larger API changes still coming.
+> 
+> Due to the somewhat hacky nature of it, migrating from React-Plug v0.1.0 to later versions won't be fun. Maybe just wait for a more stable version if you don't want to deal with that!
+>
+> Also, read the [Limitations](#-limitations) section.
+
+---
+
 [![banner](https://github.com/user-attachments/assets/2278363d-3880-4738-8097-5a6d8c504fd3)](https://react-plug.vercel.app)
 
 <div align="center">
