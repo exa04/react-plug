@@ -215,3 +215,90 @@ export class FloatParam implements Parameter<number> {
     this.nextNormalizedStep = (from, finer) => this.previewNormalized(this.nextStep(this.previewPlain(from), finer));
   }
 }
+
+export class IntParam implements Parameter<number> {
+  id: string;
+  name: string;
+  unit?: string;
+  polyModulationId?: number;
+  value: number;
+  normalizedValue: number;
+  defaultPlainValue: number;
+  defaultNormalizedValue: number;
+  stepCount?: number;
+  flags: ParamFlags;
+  previousStep: (from: number) => number;
+  nextStep: (from: number) => number;
+  previousNormalizedStep: (from: number) => number;
+  nextNormalizedStep: (from: number) => number;
+  previewNormalized: (plain: number) => number;
+  previewPlain: (normalized: number) => number;
+
+  setValue: (value: number) => void;
+  resetValue: () => void;
+  setNormalizedValue: (value: number) => void;
+  _setNormalizedValue: (value: number) => void;
+
+  format: Formatter<number>;
+
+  constructor(
+    id: string,
+    name: string,
+    defaultValue: number,
+    range: IntRange,
+    options: ParamOptions & {
+      formatter?: Formatter<number>,
+    }
+  ) {
+    this.id = id;
+    this.name = name;
+    this.unit = options.unit;
+    this.polyModulationId = options.polyModulationId;
+    this.flags = options.flags || {};
+    this.format = options.formatter || ((n) => n.toString());
+
+    this.previewNormalized = range.normalize;
+    this.previewPlain = range.unnormalize;
+
+    const defaultNormalizedValue = range.normalize(defaultValue);
+
+    this.defaultPlainValue = defaultValue;
+    this.defaultNormalizedValue = defaultNormalizedValue;
+
+    const [value, setValue] = useState(defaultValue);
+    const [normalizedValue, setNormalizedValue] = useState(defaultNormalizedValue);
+    this._setNormalizedValue = (value) => {
+      if (value == this.normalizedValue) return;
+      setValue(this.previewPlain(value));
+      setNormalizedValue(value);
+    };
+
+    this.value = value;
+    this.normalizedValue = normalizedValue;
+
+    this.setValue = (value: number) => {
+      if (value == this.value) return;
+      sendToPlugin({ParamChange: {id, value: this.previewNormalized(value)}});
+      setValue(value);
+      setNormalizedValue(this.previewNormalized(value));
+    }
+
+    this.setNormalizedValue = (value: number) => {
+      if (value == this.normalizedValue) return;
+      sendToPlugin({ParamChange: {id, value}});
+      setValue(this.previewPlain(value));
+      setNormalizedValue(value);
+    }
+
+    this.resetValue = () => {
+      this.setNormalizedValue(defaultNormalizedValue);
+    }
+
+    this.previousStep = range.previousStep;
+    this.nextStep = range.nextStep;
+    this.stepCount = range.stepCount;
+
+    this.previousNormalizedStep = (from) => this.previewNormalized(this.previousStep(this.previewPlain(from)));
+    this.nextNormalizedStep = (from) => this.previewNormalized(this.nextStep(this.previewPlain(from)));
+  }
+}
