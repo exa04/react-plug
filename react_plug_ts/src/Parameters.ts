@@ -127,6 +127,7 @@ interface Parameter<T> {
    * Flags to control the parameter’s behavior.
    */
   flags: ParamFlags;
+  format: Formatter<T>;
 }
 
 export class FloatParam implements Parameter<number> {
@@ -169,7 +170,7 @@ export class FloatParam implements Parameter<number> {
     this.unit = options.unit;
     this.polyModulationId = options.polyModulationId;
     this.flags = options.flags || {};
-    this.format = options.formatter || ((n) => n.toString());
+    this.format = options.formatter || ((n) => n.toFixed(2));
 
     this.previewNormalized = range.normalize;
     this.previewPlain = range.unnormalize;
@@ -181,27 +182,25 @@ export class FloatParam implements Parameter<number> {
 
     const [value, setValue] = useState(defaultValue);
     const [normalizedValue, setNormalizedValue] = useState(defaultNormalizedValue);
-    this._setNormalizedValue = (value) => {
-      if (value == this.normalizedValue) return;
-      setValue(this.previewPlain(value));
-      setNormalizedValue(value);
-    };
 
     this.value = value;
     this.normalizedValue = normalizedValue;
 
+    this._setNormalizedValue = (value) => {
+      setValue(this.previewPlain(value));
+      setNormalizedValue(value);
+    };
+
     this.setValue = (value: number) => {
-      if (value == this.value) return;
-      sendToPlugin({ParamChange: {id, value: this.previewNormalized(value)}});
       setValue(value);
       setNormalizedValue(this.previewNormalized(value));
+      sendToPlugin({ParamChange: {id, value: this.previewNormalized(value)}});
     }
 
     this.setNormalizedValue = (value: number) => {
-      if (value == this.normalizedValue) return;
-      sendToPlugin({ParamChange: {id, value}});
       setValue(this.previewPlain(value));
       setNormalizedValue(value);
+      sendToPlugin({ParamChange: {id, value}});
     }
 
     this.resetValue = () => {
@@ -255,7 +254,7 @@ export class IntParam implements Parameter<number> {
     this.unit = options.unit;
     this.polyModulationId = options.polyModulationId;
     this.flags = options.flags || {};
-    this.format = options.formatter || ((n) => n.toString());
+    this.format = options.formatter || ((n) => n.toFixed());
 
     this.previewNormalized = range.normalize;
     this.previewPlain = range.unnormalize;
@@ -267,27 +266,25 @@ export class IntParam implements Parameter<number> {
 
     const [value, setValue] = useState(defaultValue);
     const [normalizedValue, setNormalizedValue] = useState(defaultNormalizedValue);
-    this._setNormalizedValue = (value) => {
-      if (value == this.normalizedValue) return;
-      setValue(this.previewPlain(value));
-      setNormalizedValue(value);
-    };
 
     this.value = value;
     this.normalizedValue = normalizedValue;
 
+    this._setNormalizedValue = (value) => {
+      setValue(this.previewPlain(value));
+      setNormalizedValue(value);
+    };
+
     this.setValue = (value: number) => {
-      if (value == this.value) return;
-      sendToPlugin({ParamChange: {id, value: this.previewNormalized(value)}});
       setValue(value);
       setNormalizedValue(this.previewNormalized(value));
+      sendToPlugin({ParamChange: {id, value: this.previewNormalized(value)}});
     }
 
     this.setNormalizedValue = (value: number) => {
-      if (value == this.normalizedValue) return;
-      sendToPlugin({ParamChange: {id, value}});
       setValue(this.previewPlain(value));
       setNormalizedValue(value);
+      sendToPlugin({ParamChange: {id, value}});
     }
 
     this.resetValue = () => {
@@ -299,6 +296,177 @@ export class IntParam implements Parameter<number> {
     this.stepCount = range.stepCount;
 
     this.previousNormalizedStep = (from) => this.previewNormalized(this.previousStep(this.previewPlain(from)));
+    this.nextNormalizedStep = (from) => this.previewNormalized(this.nextStep(this.previewPlain(from)));
+  }
+}
+
+export class BoolParam implements Parameter<boolean> {
+  id: string;
+  name: string;
+  polyModulationId?: number;
+  value: boolean;
+  unit?: "";
+  normalizedValue: number;
+  defaultPlainValue: boolean;
+  defaultNormalizedValue: number;
+  stepCount?: 1;
+  flags: ParamFlags;
+  previousStep = (from: boolean) => false;
+  nextStep = (from: boolean) => true;
+  previousNormalizedStep = (from: number) => 0;
+  nextNormalizedStep = (from: number) => 1;
+  previewNormalized = (plain: boolean) => plain ? 1 : 0;
+  previewPlain = (normalized: number) => normalized > 0.5;
+
+  setValue: (value: boolean) => void;
+  resetValue: () => void;
+  setNormalizedValue: (value: number) => void;
+  _setNormalizedValue: (value: number) => void;
+
+  format: Formatter<boolean>;
+
+  constructor(
+    id: string,
+    name: string,
+    defaultValue: boolean,
+    options: ParamOptions & {
+      formatter?: Formatter<boolean>,
+    }
+  ) {
+    this.id = id;
+    this.name = name;
+    this.polyModulationId = options.polyModulationId;
+    this.flags = options.flags || {};
+    this.format = options.formatter || ((n) => n ? "On" : "Off");
+
+    const defaultNormalizedValue = defaultValue ? 1 : 0;
+
+    this.defaultPlainValue = defaultValue;
+    this.defaultNormalizedValue = defaultNormalizedValue;
+
+    const [value, setValue] = useState(defaultValue);
+    const [normalizedValue, setNormalizedValue] = useState(defaultNormalizedValue);
+
+    this.value = value;
+    this.normalizedValue = normalizedValue;
+
+    this._setNormalizedValue = (value) => {
+      setValue(this.previewPlain(value));
+      setNormalizedValue(value);
+    };
+
+    this.setValue = (value: boolean) => {
+      sendToPlugin({ParamChange: {id, value: this.previewNormalized(value)}});
+      setValue(value);
+      setNormalizedValue(this.previewNormalized(value));
+    }
+
+    this.setNormalizedValue = (value: number) => {
+      sendToPlugin({ParamChange: {id, value}});
+      setValue(this.previewPlain(value));
+      setNormalizedValue(value);
+    }
+
+    this.resetValue = () => {
+      this.setNormalizedValue(defaultNormalizedValue);
+    }
+  }
+}
+
+export class EnumParam implements Parameter<string> {
+  id: string;
+  name: string;
+  polyModulationId?: number;
+  value: string;
+  variants: { [key: string]: string };
+  unit?: "";
+  normalizedValue: number;
+  defaultPlainValue: string;
+  defaultNormalizedValue: number;
+  stepCount: number;
+  flags: ParamFlags;
+  previousStep: (from: string) => string;
+  nextStep: (from: string) => string;
+  previousNormalizedStep: (from: number) => number;
+  nextNormalizedStep: (from: number) => number;
+  previewNormalized: (plain: string) => number;
+  previewPlain: (normalized: number) => string;
+
+  setValue: (value: string) => void;
+  resetValue: () => void;
+  setNormalizedValue: (value: number) => void;
+  _setNormalizedValue: (value: number) => void;
+
+  format: Formatter<string>;
+
+  constructor(
+    id: string,
+    name: string,
+    defaultValue: string,
+    variants: { [key: string]: string },
+    options: ParamOptions & {
+      formatter?: Formatter<string>,
+    }
+  ) {
+    this.id = id;
+    this.name = name;
+    this.variants = variants;
+    this.polyModulationId = options.polyModulationId;
+    this.flags = options.flags || {};
+    this.format = (value: string) => this.variants[value];
+
+    this.stepCount = Object.keys(variants).length;
+
+    this.previewNormalized = (plain: string) => Object.keys(this.variants).findIndex(id => id == plain) / (this.stepCount - 1);
+    this.previewPlain = (normalized: number) => Object.keys(this.variants)[Math.round(normalized * (this.stepCount - 1))];
+
+    const defaultNormalizedValue = this.previewNormalized(defaultValue);
+    this.defaultNormalizedValue = defaultNormalizedValue;
+    this.defaultPlainValue = defaultValue;
+
+    const [value, setValue] = useState(defaultValue);
+    const [normalizedValue, setNormalizedValue] = useState(defaultNormalizedValue);
+
+    this.value = value;
+    this.normalizedValue = normalizedValue;
+
+    this._setNormalizedValue = (value) => {
+      setValue(this.previewPlain(value));
+      setNormalizedValue(value);
+    }
+
+    this.setValue = (value: string) => {
+      setValue(value);
+      setNormalizedValue(this.previewNormalized(value));
+      sendToPlugin({ParamChange: {id, value: this.previewNormalized(value)}});
+    }
+
+    this.setNormalizedValue = (value: number) => {
+      setValue(this.previewPlain(value));
+      setNormalizedValue(value);
+      sendToPlugin({ParamChange: {id, value}});
+    }
+
+    this.resetValue = () => {
+      this.setNormalizedValue(defaultNormalizedValue);
+    }
+
+    this.previousStep = (from) => {
+      const keys = Object.keys(this.variants);
+      const index = keys.findIndex(id => id == from);
+      if (index < 0) return from;
+      return keys[index - 1];
+    }
+
+    this.nextStep = (from) => {
+      const keys = Object.keys(this.variants);
+      const index = keys.findIndex(id => id == from);
+      if (index >= keys.length) return from;
+      return keys[index + 1 % keys.length];
+    }
+
+    this.previousNormalizedStep = (from) => this.previewNormalized(this.previousStep(this.previewPlain(from)));
+
     this.nextNormalizedStep = (from) => this.previewNormalized(this.nextStep(this.previewPlain(from)));
   }
 }

@@ -6,42 +6,38 @@ function App() {
   const ctx = usePluginContext();
 
   const params = ctx.parameters;
-  const gain = params.gain;
 
   return (
     <div className="container">
-      <div className="description">
-        <div className="leading">
-          React-Plug
-        </div>
-        <h1>Gain Example</h1>
-        <div>
-          A basic example of a gain plug-in. Created using the <b>React-Plug</b> framework.
-        </div>
+      <div className="params">
+        <h2>Parameters</h2>
+        {Object.entries(params).map(([key, param]) => (
+          <div className="input-group" key={key}>
+            <div className="labeled-input">
+              <div>{param.name}: {param.format(param.value)}{param.unit || ""}</div>
+              <input type="range" className="slider"
+                     min={0} max={1} step={0.001}
+                     value={param.normalizedValue}
+                     onChange={e => {
+                       param.setNormalizedValue(parseFloat(e.target.value))
+                     }}
+              />
+            </div>
+            <button onClick={() => param.resetValue()}>Reset</button>
+          </div>
+        ))}
       </div>
-      <hr/>
-      <div className="input-group">
-        <div className="labeled-input">
-          <div>{gain.name}: {gain.format(gain.value)}{gain.unit}</div>
-          <input type="range" className="slider"
-                 min={0} max={1} step={0.001}
-                 value={gain.normalizedValue}
-                 onChange={e => {
-                   console.log('onChange', e.target.value)
-                   gain.setNormalizedValue(parseFloat(e.target.value))
-                 }}
-          />
-        </div>
-        {/*<button onClick={() => gain.setValue(gain.defaultValue)}>Reset</button>*/}
-      </div>
-      <pre>
+      <div className="json">
+        <h2>Internal representation</h2>
+        <pre>
 {JSON.stringify(params, function (_key, value) {
   if (typeof value === 'number') {
     return parseFloat(value.toFixed(2));
   }
   return value;
-}, 2)}
+}, 4)}
       </pre>
+      </div>
     </div>
   )
 }
