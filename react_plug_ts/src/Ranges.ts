@@ -1,19 +1,17 @@
 export interface FloatRange {
-  getMin: () => number,
-  getMax: () => number,
+  min: number,
+  max: number,
   clamp: (n: number) => number,
   normalize: (n: number) => number,
   unnormalize: (n: number) => number,
-  snap_to_step: (value: number, stepSize: number) => number,
+  snapToStep: (value: number, stepSize: number) => number,
   previousStep: (from: number, stepSize?: number, finer?: boolean) => number,
   nextStep: (from: number, stepSize?: number, finer?: boolean) => number,
 }
 
-export class LinearRange implements FloatRange {
+export class LinearFloatRange implements FloatRange {
   min: number;
   max: number;
-  getMin = () => this.min;
-  getMax = () => this.max;
 
   clamp = (n: number) => clamp(n, this.min, this.max);
   normalize = (n: number) => (this.clamp(n) - this.min) / (this.max - this.min);
@@ -27,7 +25,7 @@ export class LinearRange implements FloatRange {
     if (stepSize === undefined) {
       result = naive_step
     } else if (Math.abs(naive_step - from) > stepSize) {
-      result = this.snap_to_step(naive_step, stepSize)
+      result = this.snapToStep(naive_step, stepSize)
     } else {
       result = from - stepSize
     }
@@ -43,7 +41,7 @@ export class LinearRange implements FloatRange {
     if (stepSize === undefined) {
       result = naive_step
     } else if (Math.abs(naive_step - from) > stepSize) {
-      result = this.snap_to_step(naive_step, stepSize)
+      result = this.snapToStep(naive_step, stepSize)
     } else {
       result = from + stepSize
     }
@@ -51,7 +49,7 @@ export class LinearRange implements FloatRange {
     return clamp(result, this.min, this.max);
   };
 
-  snap_to_step = (value: number, stepSize: number) => clamp(Math.round(value / stepSize) * stepSize, this.min, this.max);
+  snapToStep = (value: number, stepSize: number) => clamp(Math.round(value / stepSize) * stepSize, this.min, this.max);
 
   constructor(min: number, max: number) {
     this.min = min;
@@ -59,16 +57,48 @@ export class LinearRange implements FloatRange {
   }
 }
 
-/*export class SkewedRange implements FloatRange {
+export class SkewedFloatRange implements FloatRange {
   min: number;
   max: number;
   factor: number;
-  getMin = () => this.min;
-  getMax = () => this.max;
 
   clamp = (n: number) => clamp(n, this.min, this.max);
   normalize = (n: number) => Math.pow((this.clamp(n) - this.min) / (this.max - this.min), this.factor);
   unnormalize = (n: number) => Math.pow(n, 1 / this.factor) * (this.max - this.min) + this.min;
+
+  previousStep = (from: number, stepSize?: number, finer?: boolean) => {
+    const normalized_naive_step_size = finer ? 0.005 : 0.02;
+    const naive_step = this.unnormalize(this.normalize(from) - normalized_naive_step_size);
+
+    let result;
+    if (stepSize === undefined) {
+      result = naive_step
+    } else if (Math.abs(naive_step - from) > stepSize) {
+      result = this.snapToStep(naive_step, stepSize)
+    } else {
+      result = from - stepSize
+    }
+
+    return clamp(result, this.min, this.max);
+  };
+
+  nextStep = (from: number, stepSize?: number, finer?: boolean) => {
+    const normalized_naive_step_size = finer ? 0.005 : 0.02;
+    const naive_step = this.unnormalize(this.normalize(from) + normalized_naive_step_size);
+
+    let result;
+    if (stepSize === undefined) {
+      result = naive_step
+    } else if (Math.abs(naive_step - from) > stepSize) {
+      result = this.snapToStep(naive_step, stepSize)
+    } else {
+      result = from + stepSize
+    }
+
+    return clamp(result, this.min, this.max);
+  };
+
+  snapToStep = (value: number, stepSize: number) => clamp(Math.round(value / stepSize) * stepSize, this.min, this.max);
 
   constructor(min: number, max: number, factor: number) {
     this.min = min;
@@ -77,13 +107,11 @@ export class LinearRange implements FloatRange {
   }
 }
 
-export class SymmetricalSkewedRange implements FloatRange {
+export class SymmetricalSkewedFloatRange implements FloatRange {
   min: number;
   max: number;
   factor: number;
   center: number;
-  getMin = () => this.min;
-  getMax = () => this.max;
 
   clamp = (n: number) => clamp(n, this.min, this.max);
   normalize = (n: number) => {
@@ -114,6 +142,40 @@ export class SymmetricalSkewedRange implements FloatRange {
     return skewed_proportion * (this.max - this.min) + this.min
   };
 
+  previousStep = (from: number, stepSize?: number, finer?: boolean) => {
+    const normalized_naive_step_size = finer ? 0.005 : 0.02;
+    const naive_step = this.unnormalize(this.normalize(from) - normalized_naive_step_size);
+
+    let result;
+    if (stepSize === undefined) {
+      result = naive_step
+    } else if (Math.abs(naive_step - from) > stepSize) {
+      result = this.snapToStep(naive_step, stepSize)
+    } else {
+      result = from - stepSize
+    }
+
+    return clamp(result, this.min, this.max);
+  };
+
+  nextStep = (from: number, stepSize?: number, finer?: boolean) => {
+    const normalized_naive_step_size = finer ? 0.005 : 0.02;
+    const naive_step = this.unnormalize(this.normalize(from) + normalized_naive_step_size);
+
+    let result;
+    if (stepSize === undefined) {
+      result = naive_step
+    } else if (Math.abs(naive_step - from) > stepSize) {
+      result = this.snapToStep(naive_step, stepSize)
+    } else {
+      result = from + stepSize
+    }
+
+    return clamp(result, this.min, this.max);
+  };
+
+  snapToStep = (value: number, stepSize: number) => clamp(Math.round(value / stepSize) * stepSize, this.min, this.max);
+
   constructor(min: number, max: number, factor: number, center: number) {
     this.min = min;
     this.max = max;
@@ -122,19 +184,85 @@ export class SymmetricalSkewedRange implements FloatRange {
   }
 }
 
-export class ReversedRange implements FloatRange {
+export class ReversedFloatRange implements FloatRange {
   range: FloatRange;
-  getMin = () => this.range.getMax();
-  getMax = () => this.range.getMin();
+  min;
+  max;
 
-  clamp = (n: number) => this.range.clamp(n);
+  clamp;
   normalize = (n: number) => 1 - this.range.normalize(n);
   unnormalize = (n: number) => this.range.unnormalize(1 - n);
 
+  previousStep;
+  nextStep;
+
+  snapToStep = (value: number, stepSize: number) => this.range.snapToStep(value, stepSize);
+
   constructor(range: FloatRange) {
     this.range = range;
+    this.previousStep = range.nextStep;
+    this.nextStep = range.previousStep;
+    this.min = range.max;
+    this.max = range.min;
+    this.clamp = range.clamp;
   }
-}*/
+}
+
+export interface IntRange {
+  min: number;
+  max: number;
+  clamp: (n: number) => number,
+  normalize: (n: number) => number,
+  unnormalize: (n: number) => number,
+  previousStep: (from: number) => number,
+  nextStep: (from: number) => number,
+  stepCount: number,
+}
+
+export class LinearIntRange implements IntRange {
+  min;
+  max;
+
+  clamp = (n: number) => clamp(n, this.min, this.max);
+  normalize = (n: number) => (this.clamp(n) - this.min) / (this.max - this.min);
+  unnormalize = (n: number) => this.clamp(Math.round(n * (this.max - this.min)) + this.min);
+
+  previousStep = (from: number) => clamp(from - 1, this.min, this.max);
+  nextStep = (from: number) => clamp(from + 1, this.min, this.max);
+
+  stepCount;
+
+  constructor(min: number, max: number) {
+    this.min = min;
+    this.max = max;
+    this.stepCount = this.max - this.min;
+  }
+}
+
+export class ReversedIntRange implements IntRange {
+  range;
+  min;
+  max;
+  clamp;
+
+  normalize = (n: number) => 1 - this.range.normalize(n);
+  unnormalize = (n: number) => this.range.unnormalize(1 - n);
+
+  previousStep;
+  nextStep;
+  stepCount;
+
+  constructor(range: IntRange) {
+    this.range = range;
+    this.min = this.range.max;
+    this.max = this.range.min;
+    this.clamp = this.range.clamp;
+
+    this.previousStep = this.range.nextStep;
+    this.nextStep = this.range.previousStep;
+    this.stepCount = this.range.stepCount;
+  }
+}
 
 const clamp = (n: number, min: number, max: number): number => {
   if (n < min) return min;

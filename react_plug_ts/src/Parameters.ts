@@ -1,6 +1,6 @@
 import {type Dispatch, type SetStateAction, useEffect, useState} from "react";
 import {sendToPlugin} from "./util";
-import type {FloatRange} from "./Ranges";
+import type {FloatRange, IntRange} from "./Ranges";
 import type {Formatter} from "./Formatters";
 
 /**
@@ -62,6 +62,8 @@ interface Parameter<T> {
   value: T;
   /** Set the current value for this parameter. */
   setValue: (value: T) => void;
+  /** Reset the current value for this parameter to its default value. */
+  resetValue: () => void;
   /** The unnormalized default value for this parameter. */
   defaultPlainValue: T;
 
@@ -130,13 +132,13 @@ interface Parameter<T> {
 export class FloatParam implements Parameter<number> {
   id: string;
   name: string;
-  unit?: string | undefined;
-  polyModulationId?: number | undefined;
+  unit?: string;
+  polyModulationId?: number;
   value: number;
   normalizedValue: number;
   defaultPlainValue: number;
   defaultNormalizedValue: number;
-  stepCount?: number | undefined;
+  stepCount?: number;
   flags: ParamFlags;
   previousStep: (from: number, finer?: boolean) => number;
   nextStep: (from: number, finer?: boolean) => number;
@@ -146,6 +148,7 @@ export class FloatParam implements Parameter<number> {
   previewPlain: (normalized: number) => number;
 
   setValue: (value: number) => void;
+  resetValue: () => void;
   setNormalizedValue: (value: number) => void;
   _setNormalizedValue: (value: number) => void;
 
@@ -171,13 +174,13 @@ export class FloatParam implements Parameter<number> {
     this.previewNormalized = range.normalize;
     this.previewPlain = range.unnormalize;
 
-    const normalizedDefaultValue = range.normalize(defaultValue);
+    const defaultNormalizedValue = range.normalize(defaultValue);
 
     this.defaultPlainValue = defaultValue;
-    this.defaultNormalizedValue = normalizedDefaultValue;
+    this.defaultNormalizedValue = defaultNormalizedValue;
 
     const [value, setValue] = useState(defaultValue);
-    const [normalizedValue, setNormalizedValue] = useState(normalizedDefaultValue);
+    const [normalizedValue, setNormalizedValue] = useState(defaultNormalizedValue);
     this._setNormalizedValue = (value) => {
       if (value == this.normalizedValue) return;
       setValue(this.previewPlain(value));
@@ -199,6 +202,10 @@ export class FloatParam implements Parameter<number> {
       sendToPlugin({ParamChange: {id, value}});
       setValue(this.previewPlain(value));
       setNormalizedValue(value);
+    }
+
+    this.resetValue = () => {
+      this.setNormalizedValue(defaultNormalizedValue);
     }
 
     this.previousStep = (from, finer) => range.previousStep(from, options.stepSize, finer);
