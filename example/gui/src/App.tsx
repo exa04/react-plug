@@ -1,30 +1,12 @@
 import './styles.css';
 
 import {usePluginContext} from './bindings/PluginProvider';
-import {PluginMessage} from "./bindings/PluginMessage";
-import {useEffect, useState} from "react";
 
 function App() {
   const ctx = usePluginContext();
 
-  const gain = ctx.parameters.gain;
-  const reversed = ctx.parameters.reversed;
-  const boolTest = ctx.parameters.boolTest;
-  const intTest = ctx.parameters.intTest;
-  const enumTest = ctx.parameters.enumTest;
-
-  const [pongCount, setPongCount] = useState(0);
-
-  useEffect(() => {
-    const handler = (message: PluginMessage) => {
-      if (message === "Pong")
-        setPongCount(prevCount => prevCount + 1);
-    };
-
-    ctx.addMessageListener(handler);
-
-    return () => ctx.removeMessageListener(handler);
-  }, [ctx]);
+  const params = ctx.parameters;
+  const gain = params.gain;
 
   return (
     <div className="container">
@@ -40,66 +22,26 @@ function App() {
       <hr/>
       <div className="input-group">
         <div className="labeled-input">
-          <div>{gain.name}: {gain.value}{gain.unit}</div>
+          <div>{gain.name}: {gain.format(gain.value)}{gain.unit}</div>
           <input type="range" className="slider"
                  min={0} max={1} step={0.001}
-                 value={gain.range.normalize(gain.rawValue)}
+                 value={gain.normalizedValue}
                  onChange={e => {
-                   gain.setValue(gain.range.unnormalize(Number(e.target.value)))
+                   console.log('onChange', e.target.value)
+                   gain.setNormalizedValue(parseFloat(e.target.value))
                  }}
           />
         </div>
-        <button onClick={() => gain.setValue(gain.defaultValue)}>Reset</button>
+        {/*<button onClick={() => gain.setValue(gain.defaultValue)}>Reset</button>*/}
       </div>
-      <div className="input-group">
-        <div className="labeled-input">
-          <div>{reversed.name}: {reversed.value}{reversed.unit}</div>
-          <input type="range" className="slider"
-                 min={0} max={1} step={0.001}
-                 value={reversed.range.normalize(reversed.rawValue)}
-                 onChange={e => {
-                   reversed.setValue(reversed.range.unnormalize(Number(e.target.value)))
-                 }}
-          />
-        </div>
-        <button onClick={() => gain.setValue(gain.defaultValue)}>Reset</button>
-      </div>
-      <div className="input-group">
-        <div className="labeled-input">
-          <div>{intTest.name}: {intTest.value}{intTest.unit}</div>
-          <input type="range" className="slider"
-                 min={0} max={intTest.range.getMax()} step={1}
-                 value={intTest.rawValue}
-                 onChange={e => {
-                   intTest.setValue(Number(e.target.value))
-                 }}
-          />
-        </div>
-        <button onClick={() => intTest.setValue(intTest.defaultValue)}>Reset</button>
-      </div>
-      <div className="input-group">
-        <div className="labeled-input">
-          <div>{boolTest.name}: {boolTest.value}</div>
-        </div>
-        <a onClick={() => boolTest.toggle()}>Toggle</a>
-      </div>
-      <div className="input-group">
-        <div className="labeled-input">
-          <div>{enumTest.name}: {enumTest.rawValue}</div>
-        </div>
-        <select value={enumTest.rawValue} onChange={e => enumTest.setValue(e.target.value)}>
-          {Object.entries(enumTest.variants).map(variant =>
-            <option value={variant[0]}>
-              {variant[1]}
-            </option>
-          )}
-        </select>
-      </div>
-      <hr/>
-      <div className="message-group">
-        <button onClick={() => ctx.sendToPlugin("Ping")}>Send Ping</button>
-        <div>Pong counter: {pongCount}</div>
-      </div>
+      <pre>
+{JSON.stringify(params, function (_key, value) {
+  if (typeof value === 'number') {
+    return parseFloat(value.toFixed(2));
+  }
+  return value;
+}, 2)}
+      </pre>
     </div>
   )
 }

@@ -11,28 +11,14 @@ use std::sync::Arc;
 
 pub struct ExamplePlugin {
     params: Arc<ExampleParams>,
-    editor_channel: (Sender<PluginMessage>, Receiver<PluginMessage>),
 }
 
 impl Default for ExamplePlugin {
     fn default() -> Self {
-        let channel = crossbeam_channel::bounded::<PluginMessage>(64);
-
         Self {
-            params: Arc::new(ExampleParams::new(&Arc::new(channel.0.clone()))),
-            editor_channel: channel,
+            params: Arc::new(ExampleParams::new()),
         }
     }
-}
-
-#[gui_message(params = ExampleParams)]
-pub enum GuiMessage {
-    Ping,
-}
-
-#[plugin_message(params = ExampleParams)]
-pub enum PluginMessage {
-    Pong,
 }
 
 static EDITOR_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/gui/dist");
@@ -71,21 +57,9 @@ impl Plugin for ExamplePlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        let sender = self.editor_channel.0.clone();
-
-        ReactPlugEditor::new::<GuiMessage>(
-            self.params.clone(),
-            &EDITOR_DIR,
-            self.editor_channel.clone(),
-            (800, 600),
-        )
-        .with_developer_mode(true)
-        .with_message_handler(move |message| {
-            if let GuiMessage::Ping = message {
-                sender.send(PluginMessage::Pong).unwrap();
-            }
-        })
-        .into()
+        ReactPlugEditor::<(), ()>::new(self.params.clone(), &EDITOR_DIR, (800, 600))
+            .with_developer_mode(true)
+            .into()
     }
 
     const NAME: &'static str = "Example Plugin";

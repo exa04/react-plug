@@ -1,9 +1,11 @@
+import {GUIMessage} from "./index";
+
 export const MINUS_INFINITY_GAIN = 1e-5;
 export const MINUS_INFINITY_DB = -100;
 export const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 export const db_to_gain = (dbs: number) => {
-  if(dbs > MINUS_INFINITY_DB)
+  if (dbs > MINUS_INFINITY_DB)
     return Math.pow(10, (dbs * 0.05));
   else return 0;
 }
@@ -19,12 +21,14 @@ export const gain_to_db_fast_epsilon = (gain: number) => Math.log(Math.max(gain,
 export const midi_note_to_freq = (note: number) => Math.pow(2, (note - 69) / 12) * 440;
 export const freq_to_midi_note = (freq: number) => (Math.log2(freq / 440) * 12) + 69;
 
-export const sendToPlugin = (message: any) => {
-  if((window as any).ipc === undefined) {
-    console.warn("No IPC found!")
+export function sendToPlugin<M>(message: GUIMessage<M>) {
+  if ((window as any).ipc === undefined) {
+    console.error("No IPC found!")
     return;
   }
-  console.log("Message (GUI -> Plugin)", message);
+
+  console.debug("Message (GUI -> Plugin)", message);
+
   (window as any).ipc.postMessage(JSON.stringify(message));
 }
 
