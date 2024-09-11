@@ -57,7 +57,7 @@ impl Plugin for ExamplePlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        ReactPlugEditor::<(), ()>::new(self.params.clone(), &EDITOR_DIR, (800, 600))
+        ReactPlugEditor::<(), ()>::new(self.params.clone(), &EDITOR_DIR, (1000, 600))
             .with_developer_mode(true)
             .into()
     }

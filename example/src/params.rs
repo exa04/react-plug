@@ -67,8 +67,8 @@ pub struct ExampleParams {
     pub enum_test: EnumParam<EnumTest>,
 }
 
-impl ExampleParams {
-    pub fn new() -> Self {
+impl Default for ExampleParams {
+    fn default() -> Self {
         Self {
             gain: FloatParam::new(
                 "Gain",
@@ -91,5 +91,11 @@ impl ExampleParams {
             int_test: IntParam::new("Int Test", 0, IntRange::Linear { min: 0, max: 10 }),
             enum_test: EnumParam::new("Enum Test", EnumTest::A),
         }
+    }
+}
+
+impl ExampleParams {
+    pub fn new() -> Self {
+        Self::default()
     }
 }

@@ -32,7 +32,8 @@ const PluginProvider: FC<{ children: ReactNode }> = ({children}) => {
       "gain",
       "Gain",
       1,
-      new ReactPlug.Ranges.LinearFloatRange(ReactPlug.util.db_to_gain(-60), ReactPlug.util.db_to_gain(6.0)), {
+      new ReactPlug.Ranges.LinearFloatRange(ReactPlug.util.db_to_gain(-60), ReactPlug.util.db_to_gain(6.0)),
+      {
         unit: " dB",
         formatter: ReactPlug.Formatters.v2s_f32_gain_to_db(2),
       }
