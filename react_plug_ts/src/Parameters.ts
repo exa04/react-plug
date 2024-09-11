@@ -43,7 +43,7 @@ export type ParamOptions = {
   flags?: ParamFlags,
 }
 
-interface Parameter<T> {
+export interface Parameter<T> {
   /** The unique identifier for this parameter. */
   id: string;
   /** The human-readable name for this parameter. */
