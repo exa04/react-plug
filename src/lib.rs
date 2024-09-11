@@ -5,13 +5,12 @@ pub mod prelude {
     pub use react_plug_derive::*;
 }
 
+use nih_plug::params::Params;
 pub use react_plug_derive::*;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub type MessageChannel<M> = Arc<(crossbeam_channel::Sender<M>, crossbeam_channel::Receiver<M>)>;
-
-pub trait ParamType: serde::Serialize + serde::Deserialize<'static> + ts_rs::TS {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ParamChange {

@@ -202,54 +202,7 @@ where
     }
 
     pub fn with_protocol(mut self, protocol: &'static str) -> Self {
-        if cfg!(rp_dev) {
-            return self;
-        }
-
-        #[cfg(target_os = "windows")]
-        let url_scheme = format!("http://{}.localhost", protocol);
-        // TODO: Not tested on Linux / MacOS
-        #[cfg(not(target_os = "windows"))]
-        let url_scheme = format!("{}://localhost", protocol);
-
-        let dir = self.dir.clone();
-
-        self.editor = self
-            .editor
-            .with_custom_protocol(protocol.parse().unwrap(), move |req| {
-                let path = req.uri().path();
-
-                let path = if path == "/" {
-                    "index.html"
-                } else {
-                    &path[1..]
-                };
-
-                let mime_type = mime_guess::from_path(path)
-                    .first_or_text_plain()
-                    .to_string();
-
-                if let Some(file) = dir.get_file(path) {
-                    let content = file.contents();
-
-                    Response::builder()
-                        .header("content-type", mime_type)
-                        .header("Access-Control-Allow-Origin", "*")
-                        .body(content.into())
-                        .map_err(Into::into)
-                } else {
-                    Response::builder()
-                        .header("content-type", "text/plain")
-                        .header("Access-Control-Allow-Origin", "*")
-                        .body(
-                            "Error 404: No resource was found at this route."
-                                .as_bytes()
-                                .into(),
-                        )
-                        .map_err(Into::into)
-                }
-            });
-        self
+        todo!()
     }
 }
 
@@ -289,8 +242,7 @@ where
     }
 
     fn param_values_changed(&self) {
-        todo!();
-        self.editor.param_values_changed()
+        // TODO: Does this need to be handled too?
     }
 }
 

@@ -1,50 +1,32 @@
 use nih_plug::prelude::*;
 use react_plug::prelude::*;
 
-/*rp_params! {
-    ExampleParams {
+define_params! {
+    TestParams {
         gain: FloatParam {
             name: "Gain",
-            value: util::db_to_gain(0.0),
-            range: FloatRange::Linear {
-                min: util::db_to_gain(-60.0),
-                max: util::db_to_gain(0.0),
+            defaultValue: util::db_to_gain(0.0),
+            range: FloatRange::Skewed {
+                min: util::db_to_gain(-30.0),
+                max: util::db_to_gain(30.0),
+                factor: FloatRange::gain_skew_factor(-30.0, 30.0),
             },
             smoother: SmoothingStyle::Logarithmic(50.0),
             unit: " dB",
             value_to_string: formatters::v2s_f32_gain_to_db(2),
             string_to_value: formatters::s2v_f32_gain_to_db(),
         },
-        reversed: FloatParam {
-            name: "Reversed",
-            value: 0.0,
-            range: FloatRange::Reversed (
-                FloatRange::Linear {
-                    min: 0.0,
-                    max: 1.0,
-                },
-            ),
-        },
         bool_test: BoolParam {
             name: "Bool Test",
-            value: false
+            defaultValue: false
         },
         int_test: IntParam {
             name: "Int Test",
-            value: 0,
+            defaultValue: 0,
             range: IntRange::Linear { min: 0, max: 10 }
-        },
-        enum_test: EnumParam {
-            name: "Enum Test",
-            value: A,
-            variants: Variants {
-                A: "Option A",
-                B,
-                C: "Option C"
-            }
-        },
+        }
     }
-}*/
+}
 
 #[derive(Enum, PartialEq)]
 pub enum EnumTest {

@@ -128,6 +128,7 @@ impl Parse for RPParamField {
 }
 
 /// The types of parameters.
+#[derive(Debug, PartialEq, Eq)]
 pub enum RPParamType {
     FloatParam,
     IntParam,
