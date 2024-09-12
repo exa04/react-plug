@@ -5,7 +5,6 @@ use crate::params::*;
 use nih_plug::prelude::*;
 use react_plug::prelude::*;
 
-use crossbeam_channel::{Receiver, Sender};
 use include_dir::{include_dir, Dir};
 use std::sync::Arc;
 
@@ -16,7 +15,7 @@ pub struct ExamplePlugin {
 impl Default for ExamplePlugin {
     fn default() -> Self {
         Self {
-            params: Arc::new(ExampleParams::new()),
+            params: Arc::new(ExampleParams::default()),
         }
     }
 }
