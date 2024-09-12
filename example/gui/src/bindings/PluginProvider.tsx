@@ -1,8 +1,8 @@
 import {createContext, FC, ReactNode, useContext, useEffect, useRef} from 'react';
-
 import {EventEmitter} from 'events';
-
 import * as ReactPlug from '@exa04/react-plug';
+
+import {type Params, createParameters} from './Params';
 
 interface ContextType {
   parameters: Params;
@@ -13,59 +13,12 @@ interface ContextType {
 
 const PluginContext = createContext<ContextType | undefined>(undefined);
 
-type Params = {
-  gain: ReactPlug.Parameters.FloatParam,
-  reversed: ReactPlug.Parameters.FloatParam,
-  intTest: ReactPlug.Parameters.IntParam,
-  boolTest: ReactPlug.Parameters.BoolParam,
-  enumTest: ReactPlug.Parameters.EnumParam,
-};
-
 const PluginProvider: FC<{ children: ReactNode }> = ({children}) => {
   const eventEmitter = useRef(new EventEmitter());
 
   const addMessageListener = (action: (message: any) => void) => eventEmitter.current.on('pluginMessage', action);
   const removeMessageListener = (action: (message: any) => void) => eventEmitter.current.off('pluginMessage', action);
-
-  const parameters: Params = {
-    gain: new ReactPlug.Parameters.FloatParam(
-      "gain",
-      "Gain",
-      1,
-      new ReactPlug.Ranges.LinearFloatRange(ReactPlug.util.db_to_gain(-60), ReactPlug.util.db_to_gain(6.0)),
-      {
-        unit: " dB",
-        formatter: ReactPlug.Formatters.v2s_f32_gain_to_db(2),
-      }
-    ),
-    reversed: new ReactPlug.Parameters.FloatParam(
-      "reversed",
-      "Reversed",
-      0,
-      new ReactPlug.Ranges.ReversedFloatRange(new ReactPlug.Ranges.LinearFloatRange(0, 1)),
-      {}
-    ),
-    boolTest: new ReactPlug.Parameters.BoolParam(
-      "bool_test",
-      "Bool Test",
-      false,
-      {}
-    ),
-    intTest: new ReactPlug.Parameters.IntParam(
-      "int_test",
-      "Int Test",
-      0,
-      new ReactPlug.Ranges.LinearIntRange(0, 10),
-      {}
-    ),
-    enumTest: new ReactPlug.Parameters.EnumParam(
-      "enum_test",
-      "Enum Test",
-      "A",
-      {"A": "A", "B": "Option B", "C": "Option C"},
-      {}
-    ),
-  };
+  const parameters = createParameters();
 
   useEffect(() => {
     ReactPlug.util.sendToPlugin('Init');
@@ -76,8 +29,8 @@ const PluginProvider: FC<{ children: ReactNode }> = ({children}) => {
         console.log("Parameter change (Plugin -> GUI)", paramChange);
 
         Object.values(parameters).find(param => param.id == paramChange.id)?._setNormalizedValue(paramChange.value);
-      } else {
-        console.log('Message (Plugin -> GUI)', message);
+      } else if ("Message" in message) {
+        eventEmitter.current.emit('pluginMessage', message.Message)
       }
     };
   }, []);
@@ -85,7 +38,10 @@ const PluginProvider: FC<{ children: ReactNode }> = ({children}) => {
   return (
     <PluginContext.Provider value={{
       parameters,
-      sendToPlugin: ReactPlug.util.sendToPlugin,
+      sendToPlugin: (message: any) => {
+        console.log("Message", message)
+        ReactPlug.util.sendToPlugin({"Message": message})
+      },
       addMessageListener,
       removeMessageListener
     }}>

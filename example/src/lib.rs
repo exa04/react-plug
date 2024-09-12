@@ -6,6 +6,7 @@ use nih_plug::prelude::*;
 use react_plug::prelude::*;
 
 use include_dir::{include_dir, Dir};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub struct ExamplePlugin {
@@ -21,6 +22,20 @@ impl Default for ExamplePlugin {
 }
 
 static EDITOR_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/gui/dist");
+
+#[derive(Debug, Serialize, Deserialize)]
+enum GuiMessage {
+    Ping,
+    Foo(String),
+    Bar { a: f32, b: f32 },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+enum PluginMessage {
+    Pong,
+    Oof(String),
+    Baz { a: f32, b: f32 },
+}
 
 impl Plugin for ExamplePlugin {
     type SysExMessage = ();
@@ -56,9 +71,21 @@ impl Plugin for ExamplePlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        ReactPlugEditor::<(), ()>::new(self.params.clone(), &EDITOR_DIR, (1000, 600))
-            .with_developer_mode(true)
-            .into()
+        ReactPlugEditor::<PluginMessage, GuiMessage>::new(
+            self.params.clone(),
+            &EDITOR_DIR,
+            (1000, 800),
+        )
+        .with_background_color((0, 0, 0, 255))
+        .with_developer_mode(true)
+        .with_message_handler(|gui_message, send| match gui_message {
+            GuiMessage::Ping => {
+                let _ = send(PluginMessage::Pong);
+            }
+            GuiMessage::Foo(_) => {}
+            GuiMessage::Bar { .. } => {}
+        })
+        .into()
     }
 
     const NAME: &'static str = "Example Plugin";

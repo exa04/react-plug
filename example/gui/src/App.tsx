@@ -1,15 +1,26 @@
 import {usePluginContext} from './bindings/PluginProvider';
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {BinaryIcon, ChevronDown, ChevronRight, FunctionSquareIcon, HashIcon, TextIcon} from "lucide-react";
 
 function App() {
   const pluginContext = usePluginContext();
   const params = pluginContext.parameters;
+  const [pluginMessages, setPluginMessages] = useState<any[]>([]);
   const [editing, setEditing] = useState<null | string>();
+
+  useEffect(() => {
+    const listener = (message: any) => {
+      setPluginMessages(prev => [message, ...prev]);
+    };
+
+    pluginContext.addMessageListener(listener);
+
+    return () => pluginContext.removeMessageListener(listener);
+  }, [pluginContext]);
 
   return <div className="bg-white text-slate-800 dark:bg-zinc-950 dark:text-zinc-200 flex h-svh">
     <div
-      className="bg-slate-100 border-slate-300 dark:bg-zinc-900 border-r dark:border-zinc-700 grow w-full max-w-sm px-8 py-4"
+      className="bg-slate-100 border-slate-300 dark:bg-zinc-900 border-r dark:border-zinc-800 grow w-full max-w-sm px-8 py-4"
       onMouseDown={() => setEditing(null)}>
       <h2 className="text-xl font-bold mb-4">Parameters</h2>
       <div className="space-y-4">
@@ -61,12 +72,31 @@ function App() {
               />
             </div>
             <button
-              className="bg-slate-300 hover:bg-slate-200 dark:bg-zinc-700 hover:dark:bg-zinc-600 cursor-default h-8 px-4 rounded-md"
+              className="bg-slate-300 active:bg-slate-200 dark:bg-zinc-700 active:dark:bg-zinc-600 cursor-default h-8 px-4 rounded-md"
               onClick={() => param.resetValue()}>
               Reset
             </button>
           </div>
         )}
+      </div>
+      <hr className="my-4 border-slate-300 dark:border-zinc-700"/>
+      <h2 className="text-xl font-bold mb-2">Messages</h2>
+      <button
+        className="bg-slate-300 active:bg-slate-200 dark:bg-zinc-700 active:dark:bg-zinc-600 cursor-default h-8 px-4 rounded-md"
+        onClick={() => pluginContext.sendToPlugin('Ping')}
+      >
+        Ping
+      </button>
+      <div
+        className="rounded-lg h-40 py-2 mt-2 bg-white dark:bg-zinc-950 overflow-y-auto">
+        {pluginMessages.map((message, i) =>
+          <div
+            className="hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 px-4"
+            key={i}
+          >
+            {JSON.stringify(message)}
+          </div>
+        ).reverse()}
       </div>
     </div>
     <div className="h-svh overflow-y-auto w-full grow pl-8 py-4 text-sm">
