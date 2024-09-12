@@ -31,8 +31,12 @@ export type ParamFlags = {
 /**
  * Options for creating a new parameter.
  */
-export type ParamOptions = {
-  /** The unit label for this parameter, if any. */
+export type ParamOptions<T> = {
+  id: string,
+  name: string,
+  defaultValue: T,
+  value_to_string?: Formatter<T>
+  /** The unit label for this parameter. */
   unit?: string,
   /**
    * This parameter’s polyphonic modulation ID. If this is set for a parameter in a
@@ -127,7 +131,7 @@ export interface Parameter<T> {
    * Flags to control the parameter’s behavior.
    */
   flags: ParamFlags;
-  format: Formatter<T>;
+  value_to_string: Formatter<T>;
 }
 
 export class FloatParam implements Parameter<number> {
@@ -153,24 +157,28 @@ export class FloatParam implements Parameter<number> {
   setNormalizedValue: (value: number) => void;
   _setNormalizedValue: (value: number) => void;
 
-  format: Formatter<number>;
+  value_to_string: Formatter<number>;
 
-  constructor(
-    id: string,
-    name: string,
-    defaultValue: number,
+  constructor({
+                id,
+                name,
+                defaultValue,
+                range,
+                value_to_string,
+                stepSize,
+                unit,
+                polyModulationId,
+                flags
+              }: ParamOptions<number> & {
     range: FloatRange,
-    options: ParamOptions & {
-      stepSize?: number,
-      formatter?: Formatter<number>,
-    }
-  ) {
+    stepSize?: number,
+  }) {
     this.id = id;
     this.name = name;
-    this.unit = options.unit;
-    this.polyModulationId = options.polyModulationId;
-    this.flags = options.flags || {};
-    this.format = options.formatter || ((n) => n.toFixed(2));
+    this.unit = unit;
+    this.polyModulationId = polyModulationId;
+    this.flags = flags || {};
+    this.value_to_string = value_to_string || ((n) => n.toFixed(2));
 
     this.previewNormalized = range.normalize;
     this.previewPlain = range.unnormalize;
@@ -207,8 +215,8 @@ export class FloatParam implements Parameter<number> {
       this.setNormalizedValue(defaultNormalizedValue);
     }
 
-    this.previousStep = (from, finer) => range.previousStep(from, options.stepSize, finer);
-    this.nextStep = (from, finer) => range.nextStep(from, options.stepSize, finer);
+    this.previousStep = (from, finer) => range.previousStep(from, stepSize, finer);
+    this.nextStep = (from, finer) => range.nextStep(from, stepSize, finer);
 
     this.previousNormalizedStep = (from, finer) => this.previewNormalized(this.previousStep(this.previewPlain(from), finer));
     this.nextNormalizedStep = (from, finer) => this.previewNormalized(this.nextStep(this.previewPlain(from), finer));
@@ -238,23 +246,17 @@ export class IntParam implements Parameter<number> {
   setNormalizedValue: (value: number) => void;
   _setNormalizedValue: (value: number) => void;
 
-  format: Formatter<number>;
+  value_to_string: Formatter<number>;
 
-  constructor(
-    id: string,
-    name: string,
-    defaultValue: number,
+  constructor({id, name, defaultValue, range, value_to_string, unit, polyModulationId, flags}: ParamOptions<number> & {
     range: IntRange,
-    options: ParamOptions & {
-      formatter?: Formatter<number>,
-    }
-  ) {
+  }) {
     this.id = id;
     this.name = name;
-    this.unit = options.unit;
-    this.polyModulationId = options.polyModulationId;
-    this.flags = options.flags || {};
-    this.format = options.formatter || ((n) => n.toFixed());
+    this.unit = unit;
+    this.polyModulationId = polyModulationId;
+    this.flags = flags || {};
+    this.value_to_string = value_to_string || ((n) => n.toFixed());
 
     this.previewNormalized = range.normalize;
     this.previewPlain = range.unnormalize;
@@ -323,21 +325,14 @@ export class BoolParam implements Parameter<boolean> {
   setNormalizedValue: (value: number) => void;
   _setNormalizedValue: (value: number) => void;
 
-  format: Formatter<boolean>;
+  value_to_string: Formatter<boolean>;
 
-  constructor(
-    id: string,
-    name: string,
-    defaultValue: boolean,
-    options: ParamOptions & {
-      formatter?: Formatter<boolean>,
-    }
-  ) {
+  constructor({id, name, defaultValue, polyModulationId, flags, value_to_string}: ParamOptions<boolean>) {
     this.id = id;
     this.name = name;
-    this.polyModulationId = options.polyModulationId;
-    this.flags = options.flags || {};
-    this.format = options.formatter || ((n) => n ? "On" : "Off");
+    this.polyModulationId = polyModulationId;
+    this.flags = flags || {};
+    this.value_to_string = value_to_string || ((n) => n ? "On" : "Off");
 
     const defaultNormalizedValue = defaultValue ? 1 : 0;
 
@@ -397,23 +392,17 @@ export class EnumParam implements Parameter<string> {
   setNormalizedValue: (value: number) => void;
   _setNormalizedValue: (value: number) => void;
 
-  format: Formatter<string>;
+  value_to_string: Formatter<string>;
 
-  constructor(
-    id: string,
-    name: string,
-    defaultValue: string,
+  constructor({id, name, defaultValue, variants, polyModulationId, flags}: ParamOptions<string> & {
     variants: { [key: string]: string },
-    options: ParamOptions & {
-      formatter?: Formatter<string>,
-    }
-  ) {
+  }) {
     this.id = id;
     this.name = name;
     this.variants = variants;
-    this.polyModulationId = options.polyModulationId;
-    this.flags = options.flags || {};
-    this.format = (value: string) => this.variants[value];
+    this.polyModulationId = polyModulationId;
+    this.flags = flags || {};
+    this.value_to_string = (value: string) => this.variants[value];
 
     this.stepCount = Object.keys(variants).length;
 

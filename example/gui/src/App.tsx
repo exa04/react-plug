@@ -31,7 +31,7 @@ function App() {
                     autoFocus
                     type="number"
                     className="w-16 bg-transparent outline-none"
-                    defaultValue={param.format(param.value as never)}
+                    defaultValue={param.value_to_string(param.value as never)}
                     onKeyUp={e => {
                       if (e.key === 'Enter') {
                         // @ts-ignore
@@ -40,7 +40,7 @@ function App() {
                       }
                     }}
                   />
-                  : <div>{param.format(param.value as never)}</div>
+                  : <div>{param.value_to_string(param.value as never)}</div>
                 }
                 {param.unit && <div>{param.unit}</div>}
               </div>

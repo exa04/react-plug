@@ -51,7 +51,7 @@ export class LinearFloatRange implements FloatRange {
 
   snapToStep = (value: number, stepSize: number) => clamp(Math.round(value / stepSize) * stepSize, this.min, this.max);
 
-  constructor(min: number, max: number) {
+  constructor({min, max}: { min: number, max: number }) {
     this.min = min;
     this.max = max;
   }
@@ -100,7 +100,7 @@ export class SkewedFloatRange implements FloatRange {
 
   snapToStep = (value: number, stepSize: number) => clamp(Math.round(value / stepSize) * stepSize, this.min, this.max);
 
-  constructor(min: number, max: number, factor: number) {
+  constructor({min, max, factor}: { min: number, max: number, factor: number }) {
     this.min = min;
     this.max = max;
     this.factor = factor;
@@ -176,7 +176,7 @@ export class SymmetricalSkewedFloatRange implements FloatRange {
 
   snapToStep = (value: number, stepSize: number) => clamp(Math.round(value / stepSize) * stepSize, this.min, this.max);
 
-  constructor(min: number, max: number, factor: number, center: number) {
+  constructor({min, max, factor, center}: { min: number, max: number, factor: number, center: number }) {
     this.min = min;
     this.max = max;
     this.factor = factor;
@@ -232,7 +232,7 @@ export class LinearIntRange implements IntRange {
 
   stepCount;
 
-  constructor(min: number, max: number) {
+  constructor({min, max}: { min: number, max: number }) {
     this.min = min;
     this.max = max;
     this.stepCount = this.max - this.min;
