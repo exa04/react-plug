@@ -13,7 +13,8 @@
     "allowJs": false,
     "declaration": true,
     "moduleResolution": "node",
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "strict": true
   },
   "include": [
     "src"
