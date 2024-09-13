@@ -82,8 +82,12 @@ impl Plugin for ExamplePlugin {
             GuiMessage::Ping => {
                 let _ = send(PluginMessage::Pong);
             }
-            GuiMessage::Foo(_) => {}
-            GuiMessage::Bar { .. } => {}
+            GuiMessage::Foo(s) => {
+                let _ = send(PluginMessage::Oof(s.chars().rev().collect::<String>()));
+            }
+            GuiMessage::Bar { a, b } => {
+                let _ = send(PluginMessage::Baz { a: a / b, b: a * b });
+            }
         })
         .into()
     }
