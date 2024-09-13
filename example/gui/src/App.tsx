@@ -61,7 +61,7 @@ function App() {
                   {param.unit && <div>{param.unit}</div>}
                 </div>
                 <input type="range" className="slider"
-                       min={0} max={1} step={0.001}
+                       min={0} max={1} step={0.01}
                        value={param.normalizedValue}
                        onChange={e => {
                          param.setNormalizedValue(parseFloat(e.target.value))
@@ -99,7 +99,11 @@ function App() {
             <div className="w-10">Foo</div>
             <input value={fooMessage} onChange={e => setFooMessage(e.target.value)}
                    className="grow shrink w-0 px-1 h-full"
-                   onSubmit={() => pluginContext.sendToPlugin({'Foo': fooMessage})}/>
+                   onSubmit={() => pluginContext.sendToPlugin({'Foo': fooMessage})}
+                   onKeyDown={e => {
+                     if (e.key === 'Enter')
+                       pluginContext.sendToPlugin({'Foo': fooMessage})
+                   }}/>
             <button
               className="bg-slate-300 active:bg-slate-200 dark:bg-zinc-700 active:dark:bg-zinc-600 cursor-default h-8 px-4 rounded-md"
               onClick={() => pluginContext.sendToPlugin({'Foo': fooMessage})}
@@ -116,7 +120,10 @@ function App() {
               }
             })}
                    className="grow shrink w-0 px-1 h-full"
-                   onSubmit={() => pluginContext.sendToPlugin({'Bar': barMessage})}/>
+                   onKeyDown={e => {
+                     if (e.key === 'Enter')
+                       pluginContext.sendToPlugin({'Bar': barMessage})
+                   }}/>
             <input value={barMessage.b} onChange={e => setBarMessage((bar) => {
               return {
                 a: bar.a,
@@ -124,7 +131,10 @@ function App() {
               }
             })}
                    className="grow shrink w-0 px-1 h-full"
-                   onSubmit={() => pluginContext.sendToPlugin({'Bar': barMessage})}/>
+                   onKeyDown={e => {
+                     if (e.key === 'Enter')
+                       pluginContext.sendToPlugin({'Bar': barMessage})
+                   }}/>
             <button
               className="bg-slate-300 active:bg-slate-200 dark:bg-zinc-700 active:dark:bg-zinc-600 cursor-default h-8 px-4 rounded-md"
               onClick={() => pluginContext.sendToPlugin({'Bar': barMessage})}

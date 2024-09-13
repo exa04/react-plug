@@ -28,8 +28,8 @@ fn find_field(param: &RPParam, ident: &str) -> Expr {
 
 fn find_fields<'a>(
     param: &'a RPParam,
-    idents: impl IntoIterator<Item=&'static str> + 'a,
-) -> impl Iterator<Item=Expr> + 'a {
+    idents: impl IntoIterator<Item = &'static str> + 'a,
+) -> impl Iterator<Item = Expr> + 'a {
     idents
         .into_iter()
         .map(move |ident| find_field(param, ident))
@@ -165,18 +165,18 @@ pub fn define_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             ],
             RPParamType::EnumParam => vec!["callback", "poly_modulation_id"],
         }
-            .into_iter()
-            .filter_map(|ident| {
-                param
-                    .fields
-                    .iter()
-                    .find(|field| field.ident.to_string() == ident)
-                    .map(|field| {
-                        let ident = format_ident!("with_{}", ident);
-                        let expr = field.expr.clone();
-                        quote! { .#ident(#expr) }
-                    })
-            });
+        .into_iter()
+        .filter_map(|ident| {
+            param
+                .fields
+                .iter()
+                .find(|field| field.ident.to_string() == ident)
+                .map(|field| {
+                    let ident = format_ident!("with_{}", ident);
+                    let expr = field.expr.clone();
+                    quote! { .#ident(#expr) }
+                })
+        });
 
         quote! {
             #ident: #ty::new(#args)#(#modifier_idents)*
@@ -205,7 +205,7 @@ pub fn define_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             #bindings
         }
     }
-        .into()
+    .into()
 }
 
 fn generate_ts_bindings(params: &RPParams) -> proc_macro2::TokenStream {

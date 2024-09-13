@@ -8,6 +8,7 @@ use react_plug::prelude::*;
 use include_dir::{include_dir, Dir};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use ts_rs::TS;
 
 pub struct ExamplePlugin {
     params: Arc<ExampleParams>,
@@ -23,14 +24,16 @@ impl Default for ExamplePlugin {
 
 static EDITOR_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/gui/dist");
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../gui/src/bindings/GuiMessage.ts")]
 enum GuiMessage {
     Ping,
     Foo(String),
     Bar { a: f32, b: f32 },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../gui/src/bindings/PluginMessage.ts")]
 enum PluginMessage {
     Pong,
     Oof(String),

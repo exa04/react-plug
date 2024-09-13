@@ -3,12 +3,14 @@ import {EventEmitter} from 'events';
 import * as ReactPlug from '@exa04/react-plug';
 
 import {type Params, createParameters} from './Params';
+import {type GuiMessage} from "./GuiMessage.ts";
+import {type PluginMessage} from "./PluginMessage.ts";
 
 interface ContextType {
   parameters: Params;
-  sendToPlugin: (message: any) => void;
-  addMessageListener: (action: (message: any) => void) => void;
-  removeMessageListener: (action: (message: any) => void) => void;
+  sendToPlugin: (message: GuiMessage) => void;
+  addMessageListener: (action: (message: PluginMessage) => void) => void;
+  removeMessageListener: (action: (message: PluginMessage) => void) => void;
 }
 
 const PluginContext = createContext<ContextType | undefined>(undefined);
