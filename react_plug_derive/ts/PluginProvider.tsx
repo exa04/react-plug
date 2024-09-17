@@ -18,8 +18,8 @@ const PluginContext = createContext<ContextType | undefined>(undefined);
 const PluginProvider: FC<{ children: ReactNode }> = ({children}) => {
   const eventEmitter = useRef(new EventEmitter());
 
-  const addMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.on('pluginMessage', action);
-  const removeMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.off('pluginMessage', action);
+  const addMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.on('pluginMessage', action as (...args: any[]) => void);
+  const removeMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.off('pluginMessage', action as (...args: any[]) => void);
   const parameters = createParameters();
 
   useEffect(() => {
