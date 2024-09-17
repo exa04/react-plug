@@ -6,17 +6,19 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 pub use anyhow::Result;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use toml::Table;
 use which::which;
 
+/// Builds the GUI and its bindings before calling nih_plug_xtask
 pub fn main() -> Result<()> {
-    let mut args = std::env::args().skip(1);
+    let mut xtask_args = std::env::args().skip(1);
 
-    let command = args.next();
+    // e.g. "bundle"
+    let command = &xtask_args.next().context("No command provided")?;
 
-    if !command.is_some_and(|c| c == "bundle" || c == "bundle-universal") {
-        return nih_plug_xtask::main().context("Failed to run nih_plug xtask");
-    }
+    // e.g. ["-p", "plugin1", "-p", "plugin2", "--release"]
+    let args = xtask_args.collect::<Vec<_>>();
 
     let package_manager = if which("bun").is_ok() {
         "bun"
@@ -32,10 +34,40 @@ pub fn main() -> Result<()> {
         ));
     };
 
+    if command.as_str() == "dev-server" {
+        let (packages, _) = split_bundle_args(args)?;
+
+        if packages.len() != 1 {
+            return Err(anyhow!(
+                "You may only start a dev server for exactly one package."
+            ));
+        }
+
+        chdir_project_root(&packages[0])?;
+
+        std::env::set_current_dir("gui")
+            .context("Could not change to GUI directory. Do you have a /gui directory?")?;
+
+        Command::new(package_manager)
+            .arg("run")
+            .arg("dev")
+            .status()
+            .with_context(|| format!("Failed to run `{} install`", { package_manager }))?;
+        return Ok(());
+    }
+
+    // If the command does not require building the GUI, just directly run nih_plug xtask
+    if command.as_str() != "bundle"
+        && command.as_str() != "bundle-universal"
+        && command.as_str() != "dev"
+    {
+        return nih_plug_xtask::main();
+    }
+
     let (packages, _) = split_bundle_args(args)?;
 
     for package in packages.iter() {
-        chdir_workspace_root(package)?;
+        chdir_project_root(package)?;
 
         fs::create_dir_all(Path::new("gui/dist"))?;
 
@@ -81,8 +113,6 @@ pub fn main() -> Result<()> {
             return Err(anyhow!("Couldn't build GUI"));
         }
 
-        println!("Building GUI...");
-
         if !Command::new("cargo")
             .arg("clean")
             .arg("-p")
@@ -95,10 +125,58 @@ pub fn main() -> Result<()> {
         }
     }
 
-    nih_plug_xtask::main().context("Failed to run nih_plug xtask")
+    println!("Bundling...");
+
+    if command.as_str() == "dev" {
+        // Bundle with the "dev" cfg flag
+        let mut args = vec!["bundle".to_string()];
+        args.extend(std::env::args().skip(2));
+        args.extend(vec![
+            "--config".to_string(),
+            r#"build.rustflags=["--cfg", "rp_dev"]"#.to_string(),
+        ]);
+
+        nih_plug_xtask::main_with_args("cargo xtask", args).context("nih_plug xtask failed")?;
+
+        packages
+            .into_par_iter()
+            .map(|package| {
+                let mut cwd = get_project_root(&package)
+                    .context(format!("Could not change to project root of {}", &package))?;
+
+                cwd.push("gui");
+
+                println!("Starting dev server of {}...", &package);
+
+                if !Command::new(package_manager)
+                    .arg("run")
+                    .arg("dev")
+                    .current_dir(cwd)
+                    .status()
+                    .with_context(|| {
+                        format!(
+                            "Failed to run `dev` script for {} using `{}`",
+                            &package, &package_manager
+                        )
+                    })?
+                    .success()
+                {
+                    Ok(())
+                } else {
+                    Err(anyhow!(
+                        "Failed to run `dev` script for {} using `{}`",
+                        &package,
+                        &package_manager
+                    ))
+                }
+            })
+            .collect::<Result<()>>()
+    } else {
+        nih_plug_xtask::main().context("nih_plug xtask failed")
+    }
 }
 
-pub fn chdir_workspace_root(project_name: &String) -> Result<()> {
+fn get_project_root(project_name: &String) -> Result<PathBuf> {
     let project_dir = std::env::var("CARGO_MANIFEST_DIR")
         .map(PathBuf::from)
         .or_else(|_| std::env::current_dir())
@@ -107,7 +185,7 @@ pub fn chdir_workspace_root(project_name: &String) -> Result<()> {
              found",
         )?;
 
-    let root = project_dir
+    project_dir
         .ancestors()
         .chain(std::iter::once(project_dir.as_path()))
         .map(|dir| {
@@ -146,14 +224,12 @@ pub fn chdir_workspace_root(project_name: &String) -> Result<()> {
         })
         .find(Option::is_some)
         .flatten()
-        .context("Could not find workspace root directory")?;
-
-    std::env::set_current_dir(root).context("Could not change to workspace root directory")
+        .context("Could not find project root directory")
 }
 
-// Taken directly from nih_plug_xtask
-fn split_bundle_args(args: impl Iterator<Item = String>) -> Result<(Vec<String>, Vec<String>)> {
-    let mut args = args.peekable();
+/// See [nih_plug_xtask::split_bundle_args].
+fn split_bundle_args(args: impl IntoIterator<Item=String>) -> Result<(Vec<String>, Vec<String>)> {
+    let mut args = args.into_iter().peekable();
     let mut packages = Vec::new();
     if args.peek().map(|s| s.as_str()) == Some("-p") {
         while args.peek().map(|s| s.as_str()) == Some("-p") {
@@ -165,4 +241,16 @@ fn split_bundle_args(args: impl Iterator<Item = String>) -> Result<(Vec<String>,
     let other_args: Vec<_> = args.collect();
 
     Ok((packages, other_args))
+}
+
+/// To a similar effect as [`nih_plug_xtask::chdir_workspace_root`].
+///
+/// This function will change the current working directory to the root of the workspace that contains
+/// the project with the given name. It tries to find the exact project directory by parsing the
+/// `Cargo.toml` files of the ancestors of the current working directory.
+///
+/// This is done because the `gui` subdirectory needs to be changed into and built from.
+fn chdir_project_root(project_name: &String) -> Result<()> {
+    let root = get_project_root(project_name)?;
+    std::env::set_current_dir(root).context("Could not change to project root")
 }

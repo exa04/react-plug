@@ -5,37 +5,40 @@ use crate::params::*;
 use nih_plug::prelude::*;
 use react_plug::prelude::*;
 
-use crossbeam_channel::{Receiver, Sender};
 use include_dir::{include_dir, Dir};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use ts_rs::TS;
 
 pub struct ExamplePlugin {
     params: Arc<ExampleParams>,
-    editor_channel: (Sender<PluginMessage>, Receiver<PluginMessage>),
 }
 
 impl Default for ExamplePlugin {
     fn default() -> Self {
-        let channel = crossbeam_channel::bounded::<PluginMessage>(64);
-
         Self {
-            params: Arc::new(ExampleParams::new(&Arc::new(channel.0.clone()))),
-            editor_channel: channel,
+            params: Arc::new(ExampleParams::default()),
         }
     }
 }
 
-#[gui_message(params = ExampleParams)]
-pub enum GuiMessage {
-    Ping,
-}
-
-#[plugin_message(params = ExampleParams)]
-pub enum PluginMessage {
-    Pong,
-}
-
 static EDITOR_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/gui/dist");
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../gui/src/bindings/GuiMessage.ts")]
+enum GuiMessage {
+    Ping,
+    Foo(String),
+    Bar { a: f32, b: f32 },
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../gui/src/bindings/PluginMessage.ts")]
+enum PluginMessage {
+    Pong,
+    Oof(String),
+    Baz { a: f32, b: f32 },
+}
 
 impl Plugin for ExamplePlugin {
     type SysExMessage = ();
@@ -71,17 +74,22 @@ impl Plugin for ExamplePlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        let sender = self.editor_channel.0.clone();
-
-        ReactPlugEditor::new::<GuiMessage>(
+        ReactPlugEditor::<PluginMessage, GuiMessage>::new(
             self.params.clone(),
             &EDITOR_DIR,
-            self.editor_channel.clone(),
+            (1000, 800),
         )
+        .with_background_color((0, 0, 0, 255))
         .with_developer_mode(true)
-        .with_message_handler(move |message| {
-            if let GuiMessage::Ping = message {
-                sender.send(PluginMessage::Pong).unwrap();
+        .with_message_handler(|gui_message, send| match gui_message {
+            GuiMessage::Ping => {
+                let _ = send(PluginMessage::Pong);
+            }
+            GuiMessage::Foo(s) => {
+                let _ = send(PluginMessage::Oof(s.chars().rev().collect::<String>()));
+            }
+            GuiMessage::Bar { a, b } => {
+                let _ = send(PluginMessage::Baz { a: a / b, b: a * b });
             }
         })
         .into()
