@@ -1,12 +1,3 @@
-> [!Warning]
-> This framework is very early on in development. Bugs, crashes, and unexpected weirdness are basically guaranteed. Currently, it only works on Windows. There are also some larger API changes still coming.
-> 
-> Due to the somewhat hacky nature of it, migrating from React-Plug v0.1.0 to later versions won't be fun. Maybe just wait for a more stable version if you don't want to deal with that!
->
-> Also, read the [Limitations](#-limitations) section.
-
----
-
 [![banner](https://github.com/user-attachments/assets/2278363d-3880-4738-8097-5a6d8c504fd3)](https://react-plug.vercel.app)
 
 <div align="center">
@@ -14,7 +5,7 @@
 [![Test](https://github.com/223230/react_plug/actions/workflows/test.yml/badge.svg)](https://github.com/223230/react_plug/actions/workflows/test.yml)
 ![Lines of Code](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.codetabs.com%2Fv1%2Floc%2F%3Fgithub%3D223230%2Freact_plug%26branch%3Dmain&query=%24%5B%3F(%40.language%3D%3D%22Rust%22)%5D.linesOfCode&label=Lines%20of%20Code&labelColor=gray&color=blue)
 [![Dependency status](https://deps.rs/repo/github/223230/react_plug/status.svg)](https://deps.rs/repo/github/223230/react_plug)
-[![0.2.0 milestone counter](https://img.shields.io/github/milestones/progress-percent/223230/react_plug/2)](https://github.com/223230/react_plug/milestone/2)
+[![0.3.0 milestone counter](https://img.shields.io/github/milestones/progress-percent/223230/react_plug/3)](https://github.com/223230/react_plug/milestone/3)
 </div>
 
 React-Plug is a crate that allows you to build Rust audio plug-ins with React GUIs.
@@ -23,10 +14,10 @@ and includes your React GUI, automagically handles plugin-to-GUI communication, 
 more. It strives to be a batteries-included, opinionated, easy-to-use framework.
 Here are some of its standout features:
 
-- Easy built-in API for parameters
+- Rich API for parameters
 - Custom GUI/plugin messages
 - Macros for TS codegen
-- ~~GUI Hot-reloading~~ *(not yet)*
+- GUI Hot-reloading
 
 It integrates into [nih-plug] and is based on [nih-plug-webview], which uses native
 WebView to display web UIs.
@@ -37,19 +28,35 @@ WebView to display web UIs.
 
 ## ✨ Getting Started
 
-The most straight-forward way to get started with React-Plug is to use
-[cargo-generate].
+### Requirements
+
+- First, make sure that you have the rust toolchain. If not, install it from
+[rustup.rs](https://rustup.rs).
+- You also need to have a node.js package manager, such as:
+  - [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+  - [pnpm](https://pnpm.io/installation)
+  - [yarn](https://yarnpkg.com/getting-started/install)
+  - [bun](https://bun.sh/docs/installation)
+
+### Generating a Plugin
+
+The most straight-forward way to create a new plugin with React-Plug is to use
+[cargo-generate]. If you don't already have it, install it using:
+
+```sh
+cargo install cargo-generate
+```
 
 [cargo-generate]: https://github.com/cargo-generate/cargo-generate
+
+Finally, you can generate your new plugin using the following command:
 
 ```sh
 cargo generate gh:exa04/react-plug-template
 ```
 
-To run this command, you need to have [cargo-generate] installed. Also, make sure
-that you have some node package manager installed, either npm, pnpm, yarn or bun
-will do. Once you've run the command, you will be prompted to enter all the
-necessary bits about your plugin. After that, a new project will be created for you.
+Once you've run it command, you will be prompted to enter all the necessary bits
+about your plugin. After that, a new project will be created for you.
 
 You can now build your plugin using:
 
