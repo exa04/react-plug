@@ -26,7 +26,7 @@ function App() {
       className="grow w-full max-w-sm p-4 flex flex-col gap-2"
       onMouseDown={() => setEditing(null)}>
       <div
-        className="bg-slate-100 dark:bg-zinc-900 border-slate-200 dark:border-slate-800 p-6 pt-3 rounded-lg border">
+        className="bg-slate-100 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 p-6 pt-3 rounded-lg border">
         <h2 className="text-xl font-bold mb-4">Parameters</h2>
         <div className="space-y-4">
           {Object.entries(params).map(([key, param]) =>
@@ -86,7 +86,7 @@ function App() {
         </div>
       </div>
       <div
-        className="bg-slate-100 dark:bg-zinc-900 border-slate-200 dark:border-slate-800 p-6 pt-3 rounded-lg border grow flex flex-col">
+        className="bg-slate-100 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 p-6 pt-3 rounded-lg border grow flex flex-col">
         <h2 className="text-xl font-bold mb-2">Messages</h2>
         <div className="flex flex-col space-y-2">
           <button
@@ -98,7 +98,7 @@ function App() {
           <div className="flex gap-2 justify-between items-center">
             <div className="w-10">Foo</div>
             <input value={fooMessage} onChange={e => setFooMessage(e.target.value)}
-                   className="grow shrink w-0 px-1 h-full"
+                   className="grow shrink w-0 px-2 h-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-md"
                    onSubmit={() => pluginContext.sendToPlugin({'Foo': fooMessage})}
                    onKeyDown={e => {
                      if (e.key === 'Enter')
@@ -119,7 +119,7 @@ function App() {
                 b: bar.b
               }
             })}
-                   className="grow shrink w-0 px-1 h-full"
+                   className="grow shrink w-0 px-1 h-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-md"
                    onKeyDown={e => {
                      if (e.key === 'Enter')
                        pluginContext.sendToPlugin({'Bar': barMessage})
@@ -130,7 +130,7 @@ function App() {
                 b: Number.parseFloat(e.target.value)
               }
             })}
-                   className="grow shrink w-0 px-1 h-full"
+                   className="grow shrink w-0 px-1 h-full bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-md"
                    onKeyDown={e => {
                      if (e.key === 'Enter')
                        pluginContext.sendToPlugin({'Bar': barMessage})

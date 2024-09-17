@@ -5,7 +5,6 @@ use heck::ToLowerCamelCase;
 use params::*;
 use quote::{format_ident, quote, ToTokens};
 use std::ops::Deref;
-use syn::Expr::Struct;
 use syn::{Expr, Member};
 
 mod params;
@@ -28,8 +27,8 @@ fn find_field(param: &RPParam, ident: &str) -> Expr {
 
 fn find_fields<'a>(
     param: &'a RPParam,
-    idents: impl IntoIterator<Item = &'static str> + 'a,
-) -> impl Iterator<Item = Expr> + 'a {
+    idents: impl IntoIterator<Item=&'static str> + 'a,
+) -> impl Iterator<Item=Expr> + 'a {
     idents
         .into_iter()
         .map(move |ident| find_field(param, ident))
@@ -47,7 +46,7 @@ pub fn define_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         let ty = &param.ty;
 
         let ty = if ty == &RPParamType::EnumParam {
-            let associated = if let Struct(s) = find_field(param, "variants") {
+            let associated = if let Expr::Struct(s) = find_field(param, "variants") {
                 s.path
             } else {
                 panic!("Invalid syntax for \"variants\" field!");
@@ -78,7 +77,7 @@ pub fn define_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         .iter()
         .filter(|param| param.ty == RPParamType::EnumParam)
         .map(|param| {
-            let (ident, variants) = if let Struct(s) = find_field(param, "variants") {
+            let (ident, variants) = if let Expr::Struct(s) = find_field(param, "variants") {
                 (
                     s.path,
                     s.fields.into_iter().map(|field| {
@@ -119,7 +118,7 @@ pub fn define_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         let args = if ty == &RPParamType::EnumParam {
             let name = find_field(param, "name");
             let default_value = find_field(param, "default_value");
-            let ident = if let Struct(s) = find_field(param, "variants") {
+            let ident = if let Expr::Struct(s) = find_field(param, "variants") {
                 s.path
             } else {
                 panic!("Invalid syntax for \"variants\" field!");
@@ -165,18 +164,18 @@ pub fn define_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             ],
             RPParamType::EnumParam => vec!["callback", "poly_modulation_id"],
         }
-        .into_iter()
-        .filter_map(|ident| {
-            param
-                .fields
-                .iter()
-                .find(|field| field.ident.to_string() == ident)
-                .map(|field| {
-                    let ident = format_ident!("with_{}", ident);
-                    let expr = field.expr.clone();
-                    quote! { .#ident(#expr) }
-                })
-        });
+            .into_iter()
+            .filter_map(|ident| {
+                param
+                    .fields
+                    .iter()
+                    .find(|field| field.ident.to_string() == ident)
+                    .map(|field| {
+                        let ident = format_ident!("with_{}", ident);
+                        let expr = field.expr.clone();
+                        quote! { .#ident(#expr) }
+                    })
+            });
 
         quote! {
             #ident: #ty::new(#args)#(#modifier_idents)*
@@ -205,7 +204,7 @@ pub fn define_params(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
             #bindings
         }
     }
-    .into()
+        .into()
 }
 
 fn generate_ts_bindings(params: &RPParams) -> proc_macro2::TokenStream {
@@ -354,6 +353,10 @@ export const createParameters: () => Params = () => ({{{{
         param_type_def, param_defaults
     );
 
+    static LIBRARY_CODE: &str = include_str!("../ts/react-plug.ts");
+
+    static PLUGIN_PROVIDER: &str = include_str!("../ts/PluginProvider.tsx");
+
     quote! {
         #[cfg(test)]
         mod bindings {
@@ -369,8 +372,17 @@ export const createParameters: () => Params = () => ({{{{
 
                 let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("gui/src/bindings");
                 create_dir_all(&path).expect("Couldn't create directory for bindings");
+
                 let mut file = File::create(path.join("Params.ts")).unwrap();
                 file.write_all(ts.as_bytes()).unwrap();
+
+                let rp_ts = #LIBRARY_CODE;
+                let mut file = File::create(path.join("react-plug.ts")).unwrap();
+                file.write_all(rp_ts.as_bytes()).unwrap();
+
+                let plugin_provider = #PLUGIN_PROVIDER;
+                let mut file = File::create(path.join("PluginProvider.tsx")).unwrap();
+                file.write_all(plugin_provider.as_bytes()).unwrap();
             }
         }
     }

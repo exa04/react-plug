@@ -1,10 +1,10 @@
 import {createContext, FC, ReactNode, useContext, useEffect, useRef} from 'react';
 import {EventEmitter} from 'events';
-import * as ReactPlug from '@exa04/react-plug';
 
 import {type Params, createParameters} from './Params';
 import {type GuiMessage} from "./GuiMessage.ts";
 import {type PluginMessage} from "./PluginMessage.ts";
+import * as ReactPlug from "./react-plug.ts";
 
 interface ContextType {
   parameters: Params;
@@ -18,14 +18,14 @@ const PluginContext = createContext<ContextType | undefined>(undefined);
 const PluginProvider: FC<{ children: ReactNode }> = ({children}) => {
   const eventEmitter = useRef(new EventEmitter());
 
-  const addMessageListener = (action: (message: any) => void) => eventEmitter.current.on('pluginMessage', action);
-  const removeMessageListener = (action: (message: any) => void) => eventEmitter.current.off('pluginMessage', action);
+  const addMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.on('pluginMessage', action);
+  const removeMessageListener = (action: (message: PluginMessage) => void) => eventEmitter.current.off('pluginMessage', action);
   const parameters = createParameters();
 
   useEffect(() => {
-    ReactPlug.util.sendToPlugin('Init');
+    ReactPlug.sendToPlugin('Init');
 
-    (window as any).onPluginMessage = (message: ReactPlug.PluginMessage<any>) => {
+    (window as unknown as ReactPlug.Window).onPluginMessage = (message: ReactPlug.PluginMessage<unknown>) => {
       if ("ParamChange" in message) {
         const paramChange = (message.ParamChange as ReactPlug.ParamChange)
         console.log("Parameter change (Plugin -> GUI)", paramChange);
@@ -40,9 +40,9 @@ const PluginProvider: FC<{ children: ReactNode }> = ({children}) => {
   return (
     <PluginContext.Provider value={{
       parameters,
-      sendToPlugin: (message: any) => {
+      sendToPlugin: (message: GuiMessage) => {
         console.log("Message", message)
-        ReactPlug.util.sendToPlugin({"Message": message})
+        ReactPlug.sendToPlugin({"Message": message})
       },
       addMessageListener,
       removeMessageListener
