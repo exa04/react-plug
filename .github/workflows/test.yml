@@ -17,9 +17,5 @@ jobs:
     - uses: oven-sh/setup-bun@v2
       with:
           bun-version: latest
-    - name: Install TS library deps
-      run: bun i --cwd react_plug_ts
-    - name: Build TS code
-      run: bun run --cwd react_plug_ts build
     - name: Build example plug-in
       run: cargo xtask bundle example
