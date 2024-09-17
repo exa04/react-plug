@@ -1,8 +1,18 @@
 pub mod editor;
 
+/// Re-export of [serde]
+pub use serde as sd;
+/// Re-export of [ts_rs]
+pub use ts_rs as ts;
+
 pub mod prelude {
     pub use crate::editor::ReactPlugEditor;
     pub use react_plug_derive::*;
+
+    /// Re-export of [serde]'s Serialize and Deserialize
+    pub use crate::sd::{Deserialize, Serialize};
+    /// Re-export of [ts_rs::TS]
+    pub use crate::ts::TS;
 }
 
 use nih_plug::params::Params;

@@ -6,9 +6,7 @@ use nih_plug::prelude::*;
 use react_plug::prelude::*;
 
 use include_dir::{include_dir, Dir};
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use ts_rs::TS;
 
 pub struct ExamplePlugin {
     params: Arc<ExampleParams>,
