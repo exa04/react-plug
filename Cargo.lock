@@ -2443,7 +2443,7 @@ dependencies = [
 
 [[package]]
 name = "react_plug"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam-channel",
  "include_dir",
@@ -2458,7 +2458,7 @@ dependencies = [
 
 [[package]]
 name = "react_plug_derive"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crossbeam-channel",
  "heck 0.5.0",

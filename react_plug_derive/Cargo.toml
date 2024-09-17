@@ -1,6 +1,6 @@
 [package]
 name = "react_plug_derive"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["223230 <223230@proton.me>"]
 edition = "2018"
 
