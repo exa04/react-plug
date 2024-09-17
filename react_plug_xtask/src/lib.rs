@@ -20,14 +20,6 @@ pub fn main() -> Result<()> {
     // e.g. ["-p", "plugin1", "-p", "plugin2", "--release"]
     let args = xtask_args.collect::<Vec<_>>();
 
-    // If the command does not require building the GUI, just directly run nih_plug xtask
-    if command.as_str() != "bundle"
-        && command.as_str() != "bundle-universal"
-        && command.as_str() != "dev"
-    {
-        return nih_plug_xtask::main();
-    }
-
     let package_manager = if which("bun").is_ok() {
         "bun"
     } else if which("yarn").is_ok() {
@@ -41,6 +33,36 @@ pub fn main() -> Result<()> {
             "No JS package manager found. You need bun, yarn, pnpm, or npm."
         ));
     };
+
+    if command.as_str() == "dev-server" {
+        let (packages, _) = split_bundle_args(args)?;
+
+        if packages.len() != 1 {
+            return Err(anyhow!(
+                "You may only start a dev server for exactly one package."
+            ));
+        }
+
+        chdir_project_root(&packages[0])?;
+
+        std::env::set_current_dir("gui")
+            .context("Could not change to GUI directory. Do you have a /gui directory?")?;
+
+        Command::new(package_manager)
+            .arg("run")
+            .arg("dev")
+            .status()
+            .with_context(|| format!("Failed to run `{} install`", { package_manager }))?;
+        return Ok(());
+    }
+
+    // If the command does not require building the GUI, just directly run nih_plug xtask
+    if command.as_str() != "bundle"
+        && command.as_str() != "bundle-universal"
+        && command.as_str() != "dev"
+    {
+        return nih_plug_xtask::main();
+    }
 
     let (packages, _) = split_bundle_args(args)?;
 
@@ -206,7 +228,7 @@ fn get_project_root(project_name: &String) -> Result<PathBuf> {
 }
 
 /// See [nih_plug_xtask::split_bundle_args].
-fn split_bundle_args(args: impl IntoIterator<Item = String>) -> Result<(Vec<String>, Vec<String>)> {
+fn split_bundle_args(args: impl IntoIterator<Item=String>) -> Result<(Vec<String>, Vec<String>)> {
     let mut args = args.into_iter().peekable();
     let mut packages = Vec::new();
     if args.peek().map(|s| s.as_str()) == Some("-p") {

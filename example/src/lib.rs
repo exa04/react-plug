@@ -79,20 +79,20 @@ impl Plugin for ExamplePlugin {
             &EDITOR_DIR,
             (1000, 800),
         )
-            .with_background_color((0, 0, 0, 255))
-            .with_developer_mode(true)
-            .with_message_handler(|gui_message, send| match gui_message {
-                GuiMessage::Ping => {
-                    let _ = send(PluginMessage::Pong);
-                }
-                GuiMessage::Foo(s) => {
-                    let _ = send(PluginMessage::Oof(s.chars().rev().collect::<String>()));
-                }
-                GuiMessage::Bar { a, b } => {
-                    let _ = send(PluginMessage::Baz { a: a / b, b: a * b });
-                }
-            })
-            .into()
+        .with_background_color((0, 0, 0, 255))
+        .with_developer_mode(true)
+        .with_message_handler(|gui_message, send| match gui_message {
+            GuiMessage::Ping => {
+                let _ = send(PluginMessage::Pong);
+            }
+            GuiMessage::Foo(s) => {
+                let _ = send(PluginMessage::Oof(s.chars().rev().collect::<String>()));
+            }
+            GuiMessage::Bar { a, b } => {
+                let _ = send(PluginMessage::Baz { a: a / b, b: a * b });
+            }
+        })
+        .into()
     }
 
     const NAME: &'static str = "Example Plugin";
