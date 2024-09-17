@@ -215,7 +215,7 @@ fn generate_ts_bindings(params: &RPParams) -> proc_macro2::TokenStream {
         .iter()
         .map(|param| {
             format!(
-                "{}: ReactPlug.Parameters.{}",
+                "{}: ReactPlug.parameters.{}",
                 param.ident.to_token_stream().to_string(),
                 param.ty.to_token_stream().to_string()
             )
@@ -257,7 +257,7 @@ fn generate_ts_bindings(params: &RPParams) -> proc_macro2::TokenStream {
                                     .iter()
                                     .for_each(|arg| args.push(arg.to_token_stream()));
                                 options.push(format!(
-                                    "value_to_string: ReactPlug.Formatters.{}({})",
+                                    "value_to_string: ReactPlug.formatters.{}({})",
                                     call.func
                                         .to_token_stream()
                                         .to_string()
@@ -330,7 +330,7 @@ fn generate_ts_bindings(params: &RPParams) -> proc_macro2::TokenStream {
             }
 
             format!(
-                "{}: new ReactPlug.Parameters.{}({{{{ {} }}}})",
+                "{}: new ReactPlug.parameters.{}({{{{ {} }}}})",
                 param_ident,
                 param_ty,
                 options.join(", ")
@@ -340,7 +340,7 @@ fn generate_ts_bindings(params: &RPParams) -> proc_macro2::TokenStream {
         .join(", \n    ");
 
     let params_bindings = format!(
-        r#"import * as ReactPlug from "@exa04/react-plug";
+        r#"import * as ReactPlug from "./react-plug.ts";
 
 export type Params = {{{{
     {}
@@ -412,7 +412,7 @@ fn range_to_ts(expr: &Expr, param_type: &RPParamType) -> (String, Vec<proc_macro
 
             (
                 format!(
-                    "new ReactPlug.Ranges.{}{}Range({{{{ {} }}}})",
+                    "new ReactPlug.ranges.{}{}Range({{{{ {} }}}})",
                     range_type,
                     match param_type {
                         RPParamType::FloatParam => "Float",
@@ -438,7 +438,7 @@ fn range_to_ts(expr: &Expr, param_type: &RPParamType) -> (String, Vec<proc_macro
                     let (inner_options, inner_args) = range_to_ts(&expr, param_type);
                     (
                         format!(
-                            "new ReactPlug.Ranges.Reversed{}Range({})",
+                            "new ReactPlug.ranges.Reversed{}Range({})",
                             match param_type {
                                 RPParamType::FloatParam => "Float",
                                 RPParamType::IntParam => "Int",
