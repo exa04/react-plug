@@ -78,86 +78,79 @@ where
                 }
             })
         }
-            .with_event_loop(move |ctx, setter, _window| unsafe {
-                while let Ok(value) = ctx.next_event() {
-                    if let Ok(message) = serde_json::from_value::<GuiMessage<GM>>(value.clone()) {
-                        match message {
-                            GuiMessage::Init => {
-                                param_map.iter().for_each(|(id, param, _)| {
-                                    pm_channel_editor
-                                        .0
-                                        .send(PluginMessage::ParamChange(ParamChange {
-                                            id: id.to_string(),
-                                            value: param.modulated_normalized_value(),
-                                        }))
-                                        .unwrap()
-                                });
-                            }
-                            GuiMessage::ParamChange(param_change) => {
-                                let param = if let Some(param) =
-                                    param_map.iter().find(|(id, _, _)| id == &param_change.id)
-                                {
-                                    param.1
-                                } else {
-                                    nih_warn!("Couldn't find parameter with id: {}", param_change.id);
-                                    continue;
-                                };
-
-                                match param {
-                                    ParamPtr::FloatParam(p) => setter.begin_set_parameter(&*p),
-                                    ParamPtr::IntParam(p) => setter.begin_set_parameter(&*p),
-                                    ParamPtr::BoolParam(p) => setter.begin_set_parameter(&*p),
-                                    ParamPtr::EnumParam(p) => setter.begin_set_parameter(&*p),
-                                }
-
-                                match param {
-                                    ParamPtr::FloatParam(p) => {
-                                        setter.set_parameter_normalized(&*p, param_change.value)
-                                    }
-                                    ParamPtr::IntParam(p) => {
-                                        setter.set_parameter_normalized(&*p, param_change.value)
-                                    }
-                                    ParamPtr::BoolParam(p) => {
-                                        setter.set_parameter_normalized(&*p, param_change.value)
-                                    }
-                                    ParamPtr::EnumParam(p) => {
-                                        setter.set_parameter_normalized(&*p, param_change.value)
-                                    }
-                                }
-
-                                match param {
-                                    ParamPtr::FloatParam(p) => setter.end_set_parameter(&*p),
-                                    ParamPtr::IntParam(p) => setter.end_set_parameter(&*p),
-                                    ParamPtr::BoolParam(p) => setter.end_set_parameter(&*p),
-                                    ParamPtr::EnumParam(p) => setter.end_set_parameter(&*p),
-                                }
-                            }
-                            GuiMessage::Message(message) => {}
+        .with_event_loop(move |ctx, setter, _window| unsafe {
+            while let Ok(value) = ctx.next_event() {
+                if let Ok(message) = serde_json::from_value::<GuiMessage<GM>>(value.clone()) {
+                    match message {
+                        GuiMessage::Init => {
+                            param_map.iter().for_each(|(id, param, _)| {
+                                pm_channel_editor
+                                    .0
+                                    .send(PluginMessage::ParamChange(ParamChange {
+                                        id: id.to_string(),
+                                        value: param.modulated_normalized_value(),
+                                    }))
+                                    .unwrap()
+                            });
                         }
-                    } else {
-                        nih_warn!("Couldn't deserialize message from GUI: {:?}", value);
+                        GuiMessage::ParamChange(param_change) => {
+                            let param = if let Some(param) =
+                                param_map.iter().find(|(id, _, _)| id == &param_change.id)
+                            {
+                                param.1
+                            } else {
+                                nih_warn!("Couldn't find parameter with id: {}", param_change.id);
+                                continue;
+                            };
+
+                            match param {
+                                ParamPtr::FloatParam(p) => setter.begin_set_parameter(&*p),
+                                ParamPtr::IntParam(p) => setter.begin_set_parameter(&*p),
+                                ParamPtr::BoolParam(p) => setter.begin_set_parameter(&*p),
+                                ParamPtr::EnumParam(p) => setter.begin_set_parameter(&*p),
+                            }
+
+                            match param {
+                                ParamPtr::FloatParam(p) => {
+                                    setter.set_parameter_normalized(&*p, param_change.value)
+                                }
+                                ParamPtr::IntParam(p) => {
+                                    setter.set_parameter_normalized(&*p, param_change.value)
+                                }
+                                ParamPtr::BoolParam(p) => {
+                                    setter.set_parameter_normalized(&*p, param_change.value)
+                                }
+                                ParamPtr::EnumParam(p) => {
+                                    setter.set_parameter_normalized(&*p, param_change.value)
+                                }
+                            }
+
+                            match param {
+                                ParamPtr::FloatParam(p) => setter.end_set_parameter(&*p),
+                                ParamPtr::IntParam(p) => setter.end_set_parameter(&*p),
+                                ParamPtr::BoolParam(p) => setter.end_set_parameter(&*p),
+                                ParamPtr::EnumParam(p) => setter.end_set_parameter(&*p),
+                            }
+                        }
+                        GuiMessage::Message(message) => {}
                     }
+                } else {
+                    nih_warn!("Couldn't deserialize message from GUI: {:?}", value);
                 }
-                while !pm_channel_editor.1.is_empty() {
-                    let message = pm_channel_editor.1.recv().unwrap();
-                    let message_json = serde_json::to_value(&message);
-                    if let Ok(message_json) = message_json {
-                        ctx.send_json(message_json).unwrap_or_else(|err| {
-                            nih_warn!(
-                            r#"Couldn't send message {:?} to GUI!
-{}"#,
-                            &message,
-                            err
-                        );
-                        })
-                    } else {
-                        nih_warn!(
+            }
+            while !pm_channel_editor.1.is_empty() {
+                let message = pm_channel_editor.1.recv().unwrap();
+                let message_json = serde_json::to_value(&message);
+                if let Ok(message_json) = message_json {
+                    ctx.send_json(message_json);
+                } else {
+                    nih_warn!(
                         r#"Message couldn't be sent to GUI! Couldn't serialize {:?}"#,
                         message
                     );
-                    }
                 }
-            });
+            }
+        });
 
         Self {
             editor,
@@ -171,14 +164,14 @@ where
     pub fn with_message_handler(
         mut self,
         handler: impl Fn(
-            GM,
-            Arc<
-                dyn Fn(PM) -> Result<(), crossbeam_channel::TrySendError<PluginMessage<PM>>>
-                + 'static,
-            >,
-        ) + Send
-        + Sync
-        + 'static,
+                GM,
+                Arc<
+                    dyn Fn(PM) -> Result<(), crossbeam_channel::TrySendError<PluginMessage<PM>>>
+                        + 'static,
+                >,
+            ) + Send
+            + Sync
+            + 'static,
     ) -> Self {
         let pm_channel = self.plugin_msg_channel.clone();
         let param_map = self.params.param_map();
@@ -258,14 +251,7 @@ where
                     let message = pm_channel.1.recv().unwrap();
                     let message_json = serde_json::to_value(&message);
                     if let Ok(message_json) = message_json {
-                        ctx.send_json(message_json).unwrap_or_else(|err| {
-                            nih_warn!(
-                                r#"Couldn't send message {:?} to GUI!
-{}"#,
-                                &message,
-                                err
-                            );
-                        })
+                        ctx.send_json(message_json);
                     } else {
                         nih_warn!(
                             r#"Message couldn't be sent to GUI! Couldn't serialize {:?}"#,
